@@ -1,0 +1,14 @@
+This is very likely the exact gap I flagged you should double-check last time: the call site in state.py is probably still not passing language through to resolve_address().
+Look at the geocoder.py function signature: def resolve_address(slots, lang="ar") — it defaults to Arabic if no second argument is given. Anti Gravity's manual test explicitly called resolve_address(slots, "en"), which is why it worked. But the actual call site inside update_state() in state.py — based on everything you've shown me so far — has looked like this:
+pythongeo_result = resolve_address(state["address_slots"])
+No second argument. If that line hasn't been updated to pass state["language"], it silently falls back to the lang="ar" default — which means, for this English-speaking customer, the actual query sent would be:
+
+
+
+check whterh this problem exist ? just tell me don;t write any code,,,
+
+
+also do one more thing whne you are passing hte final uqey to osm , then also display in conosle the debug informaiton 
+what queyr you sent what actual respoens came os that i cna see clearly what is problem 
+
+

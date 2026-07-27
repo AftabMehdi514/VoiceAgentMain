@@ -1,0 +1,87 @@
+"""
+stt_hf_api.py (now updated for local inference)
+====================================================================
+STANDALONE STT TEST SCRIPT — Local GPU version via faster-whisper.
+
+This script now loads the model locally from E:\WhisperModels
+and transcribes the audio using your local GPU.
+====================================================================
+"""
+
+import time
+import os
+import glob
+import sys
+
+# Fix UnicodeEncodeError when printing non-English characters to Windows console
+if sys.stdout.encoding.lower() != 'utf-8':
+    sys.stdout.reconfigure(encoding='utf-8')
+
+# Add NVIDIA DLL directories to the DLL search path so CTranslate2 can find cublas64_12.dll
+if os.name == "nt":
+    import site
+    site_packages = site.getsitepackages()
+    if site_packages:
+        for pkg_dir in site_packages:
+            nvidia_bins = glob.glob(os.path.join(pkg_dir, "nvidia", "*", "bin"))
+            for bin_dir in nvidia_bins:
+                os.add_dll_directory(bin_dir)
+                os.environ["PATH"] = bin_dir + os.pathsep + os.environ["PATH"]
+
+from faster_whisper import WhisperModel
+
+# ============================================================
+# CONFIG — edit these for each test run
+# ============================================================
+
+AUDIO_FILE = "test_audio/AudioSample.mp3"
+
+MODEL_NAME = "large-v3-turbo"
+DOWNLOAD_ROOT = "E:\\WhisperModels"
+
+# ============================================================
+# RUN
+# ============================================================
+
+def transcribe_local(audio_file, model):
+    t0 = time.perf_counter()
+
+    # transcribe() returns an iterator of segments, plus an info object
+    segments, info = model.transcribe(audio_file, beam_size=5)
+
+    # We actually iterate over the segments to trigger the transcription
+    full_text = ""
+    for segment in segments:
+        full_text += segment.text
+
+    request_time = time.perf_counter() - t0
+
+    return {
+        "text": full_text.strip(),
+        "request_time_s": request_time,
+        "language": info.language,
+        "language_probability": info.language_probability
+    }
+
+if __name__ == "__main__":
+    print(f"Loading local model '{MODEL_NAME}' from {DOWNLOAD_ROOT}...")
+    model = WhisperModel(MODEL_NAME, device="cuda", compute_type="float16", download_root=DOWNLOAD_ROOT)
+    
+    print(f"Sending {AUDIO_FILE} to local faster-whisper model")
+    
+    # Optional warmup
+    # model.transcribe(AUDIO_FILE, beam_size=5) 
+    
+    result = transcribe_local(AUDIO_FILE, model)
+
+    print("=" * 60)
+    print("WHAT WOULD BE SENT TO THE LLM (customer message block)")
+    print("=" * 60)
+    print(f"[Customer message]\n{result['text']}")
+
+    print("\n" + "=" * 60)
+    print("LATENCY METRICS (Local GPU speed)")
+    print("=" * 60)
+    print(f"Model              : {MODEL_NAME}")
+    print(f"Detected Language  : {result['language']} ({result['language_probability']:.2f})")
+    print(f"Total request time : {result['request_time_s']:.2f}s")
