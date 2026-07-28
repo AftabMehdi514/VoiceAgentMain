@@ -1,0 +1,22 @@
+ok as as you know we have devleoped our app,,
+it has interface with gradio and all that stuff is workng there 
+but i want to to make it a next level produciton grade montering 
+system , i want to build a comprehensive live 
+dashboard that shows whether agetn is active , 
+it shows what is curreclty doing , things like ifereign , 
+db tool calling etc, , it also show their time line based
+realtime logs , 
+alllows me to hadnle and edit the system prompt as well
+later we will build to push in informaiton as a rag system but later
+for now it moniters the agent in real time shows 
+differenc matrces latencies , actions , etc 
+so hat we cna moniter the agent in real time and see 
+and also as you know were are showing logs in 
+in gradio app interface, 
+(for now don't remove it kepe it as it s,) but in 
+prralel i should be able to see that on moneting dashboard
+the dashboard must have a professional clean ui
+i shoudl be able track it fully what is happeing to full details
+use white blue , yellow colors to make that good 
+ui and also wokr in a seperate direcltory folder for this monetingetring
+make a seperprat folder and put all itscode there 

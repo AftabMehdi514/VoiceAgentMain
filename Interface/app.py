@@ -1,46 +1,23 @@
 import time
 import os
-import glob
 import sys
 import json
 import io
 import contextlib
 import gradio as gr
 
-# Add parent directory to path so we can import tania_agent
+# Add parent directory to path so we can import tania_agent, stt, tts
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Fix UnicodeEncodeError when printing non-English characters to Windows console
 if sys.stdout.encoding.lower() != 'utf-8':
     sys.stdout.reconfigure(encoding='utf-8')
 
-# Add NVIDIA DLL directories to the DLL search path so CTranslate2 can find cublas64_12.dll
-if os.name == "nt":
-    import site
-    site_packages = site.getsitepackages()
-    if site_packages:
-        for pkg_dir in site_packages:
-            nvidia_bins = glob.glob(os.path.join(pkg_dir, "nvidia", "*", "bin"))
-            for bin_dir in nvidia_bins:
-                try:
-                    os.add_dll_directory(bin_dir)
-                    os.environ["PATH"] = bin_dir + os.pathsep + os.environ["PATH"]
-                except Exception:
-                    pass
-
-from faster_whisper import WhisperModel
-from tania_agent import fresh_state, detect_language, process_turn
-
-# ============================================================
-# CONFIG & MODEL INIT
-# ============================================================
-
-MODEL_NAME = "large-v3-turbo"
-DOWNLOAD_ROOT = "E:\\WhisperModels"
-
-print(f"Loading local model '{MODEL_NAME}' from {DOWNLOAD_ROOT}...")
-model = WhisperModel(MODEL_NAME, device="cuda", compute_type="float16", download_root=DOWNLOAD_ROOT)
-print("Model loaded successfully! Launching UI...")
+from stt.stt_module import transcribe_audio
+from tts.tts_module import generate_audio
+from core.tania_agent import process_turn
+from core.state import fresh_state
+from core.utils import detect_language
 
 # ============================================================
 # LOGIC
@@ -56,25 +33,18 @@ def capture_stdout():
     finally:
         sys.stdout = old_stdout
 
-def process_input(audio_path, text_val, state, history, chat_display):
+def process_input(audio_path, text_val, voice_name, state, history, chat_display):
     customer_text = ""
-    stt_time = 0.0
     debug_stt = ""
     
     if text_val and text_val.strip():
         customer_text = text_val.strip()
         debug_stt = "Input: Text\n"
     elif audio_path:
-        t0 = time.perf_counter()
-        segments, info = model.transcribe(audio_path, beam_size=5)
-        for segment in segments:
-            customer_text += segment.text
-        customer_text = customer_text.strip()
-        stt_time = time.perf_counter() - t0
-        debug_stt = f"STT Latency: {stt_time:.2f}s | Lang: {info.language} ({info.language_probability:.2f})\n"
+        customer_text, debug_stt = transcribe_audio(audio_path)
         
     if not customer_text:
-        return state, history, chat_display, "No input provided."
+        return state, history, chat_display, "No input provided.", None
 
     if state is None:
         state = fresh_state()
@@ -88,8 +58,6 @@ def process_input(audio_path, text_val, state, history, chat_display):
         state, agent_reply, decision = process_turn(customer_text, state, history)
         
         # ── Append raw JSON to history BEFORE popping tool_trace ────────────
-        # This ensures the LLM always sees its own JSON format in history,
-        # preventing the "plain text drift" that caused the amnesia loop.
         history.append({"role": "assistant", "content": json.dumps(decision, ensure_ascii=False)})
         
         # THEN pop tool_trace for logging only (does not affect history)
@@ -118,16 +86,19 @@ def process_input(audio_path, text_val, state, history, chat_display):
         state["mobile"] = mobile
         history = []
 
-    return state, history, chat_display, debug_info
+    # Generate TTS audio
+    audio_output = generate_audio(agent_reply, voice_name=voice_name)
 
-def process_text(text_val, state, history, chat_display):
-    return process_input(None, text_val, state, history, chat_display)
+    return state, history, chat_display, debug_info, audio_output
 
-def process_audio_wrapper(audio_path, state, history, chat_display):
-    return process_input(audio_path, None, state, history, chat_display)
+def process_text(text_val, voice_name, state, history, chat_display):
+    return process_input(None, text_val, voice_name, state, history, chat_display)
+
+def process_audio_wrapper(audio_path, voice_name, state, history, chat_display):
+    return process_input(audio_path, None, voice_name, state, history, chat_display)
 
 def clear_all():
-    return fresh_state(), [], [], "Conversation cleared."
+    return fresh_state(), [], [], "Conversation cleared.", None
 
 # ============================================================
 # GRADIO UI
@@ -141,9 +112,8 @@ with gr.Blocks(title="Tania Voice Agent") as demo:
     
     with gr.Row():
         with gr.Column(scale=2):
-            chatbot = gr.Chatbot(label="Conversation", height=500)
-            
-
+            chatbot = gr.Chatbot(label="Conversation", height=400)
+            tania_voice = gr.Audio(label="Tania's Voice", autoplay=True, interactive=False)
             
             with gr.Tabs():
                 with gr.TabItem("Text Input"):
@@ -153,6 +123,11 @@ with gr.Blocks(title="Tania Voice Agent") as demo:
                     audio_input = gr.Audio(sources=["microphone", "upload"], type="filepath", label="Speak Here")
                     audio_submit_btn = gr.Button("Send Audio", variant="primary")
             
+            voice_selector = gr.Radio(
+                choices=["Miro (ar-SA)", "Dii (ar-SA)", "Kareem (ar-JO)"],
+                value="Miro (ar-SA)",
+                label="Agent Voice (Requires downloaded Piper models)"
+            )
             clear_btn = gr.Button("Clear Conversation")
             
         with gr.Column(scale=1):
@@ -161,22 +136,22 @@ with gr.Blocks(title="Tania Voice Agent") as demo:
     # Trigger processing
     text_submit_btn.click(
         fn=process_text,
-        inputs=[text_input, tania_state, tania_history, chatbot],
-        outputs=[tania_state, tania_history, chatbot, debug_box]
+        inputs=[text_input, voice_selector, tania_state, tania_history, chatbot],
+        outputs=[tania_state, tania_history, chatbot, debug_box, tania_voice]
     ).then(
         fn=lambda: "", inputs=None, outputs=text_input
     )
     
     audio_submit_btn.click(
         fn=process_audio_wrapper,
-        inputs=[audio_input, tania_state, tania_history, chatbot],
-        outputs=[tania_state, tania_history, chatbot, debug_box]
+        inputs=[audio_input, voice_selector, tania_state, tania_history, chatbot],
+        outputs=[tania_state, tania_history, chatbot, debug_box, tania_voice]
     )
     
     clear_btn.click(
         fn=clear_all,
         inputs=[],
-        outputs=[tania_state, tania_history, chatbot, debug_box]
+        outputs=[tania_state, tania_history, chatbot, debug_box, tania_voice]
     )
 
 if __name__ == "__main__":
