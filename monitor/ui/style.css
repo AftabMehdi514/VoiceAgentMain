@@ -1,0 +1,305 @@
+:root {
+    --bg-main: #f8fafc;
+    --bg-card: #ffffff;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    
+    /* Brand Colors */
+    --primary-blue: #2563eb;
+    --primary-blue-hover: #1d4ed8;
+    --accent-yellow: #eab308;
+    --accent-yellow-light: #fef08a;
+    
+    /* Status Colors */
+    --status-idle: #94a3b8;
+    --status-active: #22c55e;
+    --status-db: var(--accent-yellow);
+    --status-error: #ef4444;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.topbar {
+    background-color: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.logo h1 {
+    font-size: 1.5rem;
+    color: var(--primary-blue);
+}
+
+.badge {
+    background-color: var(--accent-yellow-light);
+    color: #854d0e;
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 500;
+}
+
+.pulse {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.pulse.idle { background-color: var(--status-idle); }
+.pulse.active { 
+    background-color: var(--status-active);
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+    animation: pulse-active 1.5s infinite;
+}
+.pulse.db {
+    background-color: var(--status-db);
+    box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.7);
+    animation: pulse-db 1.5s infinite;
+}
+
+@keyframes pulse-active {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+@keyframes pulse-db {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(234, 179, 8, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(234, 179, 8, 0); }
+}
+
+.dashboard {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.timeline-panel {
+    flex: 1;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-main);
+}
+
+.timeline-panel h2 {
+    padding: 1rem 1.5rem;
+    font-size: 1rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border);
+}
+
+.timeline {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.empty-state {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 3rem;
+    font-style: italic;
+}
+
+/* Trace Card */
+.trace-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.trace-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+
+.trace-nodes {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.node {
+    background: var(--bg-main);
+    border: 1px solid var(--border);
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.node:hover {
+    border-color: var(--primary-blue);
+    background: #eff6ff;
+}
+
+.node.active {
+    border-color: var(--primary-blue);
+    background: #eff6ff;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.node-title {
+    font-weight: 600;
+    color: var(--primary-blue);
+}
+
+.node-time {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+}
+
+.details-panel {
+    width: 400px;
+    background: var(--bg-card);
+    display: flex;
+    flex-direction: column;
+}
+
+.tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+}
+
+.tab {
+    flex: 1;
+    padding: 1rem;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.tab.active {
+    color: var(--primary-blue);
+    border-bottom-color: var(--primary-blue);
+}
+
+.tab-content {
+    display: none;
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+}
+
+.tab-content.active {
+    display: flex;
+    flex-direction: column;
+}
+
+.inspector-empty {
+    text-align: center;
+    color: var(--text-muted);
+    margin-top: 3rem;
+}
+
+.payload-block {
+    background: var(--bg-main);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.payload-block h4 {
+    margin-bottom: 0.5rem;
+    color: var(--text-main);
+    font-size: 0.9rem;
+}
+
+pre {
+    background: #1e293b;
+    color: #e2e8f0;
+    padding: 1rem;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
+
+.prompt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.btn {
+    background: var(--primary-blue);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+
+.btn:hover {
+    background: var(--primary-blue-hover);
+}
+
+#prompt-editor {
+    flex: 1;
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    font-family: monospace;
+    font-size: 0.85rem;
+    resize: none;
+    outline: none;
+}
+#prompt-editor:focus {
+    border-color: var(--primary-blue);
+}

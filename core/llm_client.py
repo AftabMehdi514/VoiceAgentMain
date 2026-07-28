@@ -10,6 +10,7 @@ to the local LM Studio instance running on port 1234.
 
 import requests
 import json
+from core.telemetry import Span
 
 def qwen_chat(messages, max_new_tokens=400, temperature=0.7):
     """
@@ -31,16 +32,19 @@ def qwen_chat(messages, max_new_tokens=400, temperature=0.7):
         "Content-Type": "application/json"
     }
     
-    try:
-        response = requests.post(url, headers=headers, json=payload, timeout=180)
-        response.raise_for_status()
-        
-        result = response.json()
-        return result['choices'][0]['message']['content']
-        
-    except Exception as e:
-        print(f"Error communicating with local LLM server: {e}")
-        return "{}"
+    with Span("llm_inference", metadata={"payload": payload}) as span:
+        try:
+            response = requests.post(url, headers=headers, json=payload, timeout=180)
+            response.raise_for_status()
+            
+            result = response.json()
+            content = result['choices'][0]['message']['content']
+            span.exit_metadata = {"response": content, "usage": result.get("usage", {})}
+            return content
+            
+        except Exception as e:
+            print(f"Error communicating with local LLM server: {e}")
+            return "{}"
 
 if __name__ == "__main__":
     # Quick manual sanity check: python llm_client.py

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tania Observability Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header class="topbar">
+        <div class="logo">
+            <h1>Tania</h1>
+            <span class="badge">Live Monitoring</span>
+        </div>
+        <div class="status-indicator">
+            <div id="pulse" class="pulse idle"></div>
+            <span id="status-text">Agent Idle</span>
+        </div>
+    </header>
+
+    <main class="dashboard">
+        <section class="timeline-panel">
+            <h2>Conversation Timeline</h2>
+            <div id="timeline" class="timeline">
+                <!-- Trace cards will be injected here -->
+                <div class="empty-state">Waiting for activity...</div>
+            </div>
+        </section>
+
+        <section class="details-panel">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('inspector')">Trace Inspector</button>
+                <button class="tab" onclick="switchTab('prompt')">Prompt Console</button>
+            </div>
+
+            <div id="tab-inspector" class="tab-content active">
+                <div id="inspector-content" class="inspector-empty">
+                    Select a node from the timeline to view deep payload metrics.
+                </div>
+            </div>
+
+            <div id="tab-prompt" class="tab-content">
+                <div class="prompt-header">
+                    <h3>System Prompt Editor</h3>
+                    <button id="save-prompt-btn" class="btn">Save & Apply</button>
+                </div>
+                <textarea id="prompt-editor" spellcheck="false">Loading...</textarea>
+            </div>
+        </section>
+    </main>
+    <script src="/static/app.js"></script>
+</body>
+</html>

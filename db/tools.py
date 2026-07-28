@@ -1,5 +1,6 @@
 import json as _json
 from db.db import get_connection
+from core.telemetry import Span
 
 # ── Module-level product cache (populated ONCE at startup) ────────────────────
 _TOP_PRODUCTS_CACHE = None
@@ -348,9 +349,17 @@ def execute_tool(name, arguments):
     fn = TOOL_REGISTRY.get(name)
     if not fn:
         return {"error": f"unknown_tool:{name}"}
-    try:
-        return fn(**(arguments or {}))
-    except TypeError as e:
-        return {"error": f"bad_arguments:{e}"}
-    except Exception as e:
-        return {"error": f"tool_error:{e}"}
+    
+    with Span(f"db_tool_{name}", metadata={"arguments": arguments}) as span:
+        try:
+            result = fn(**(arguments or {}))
+            span.exit_metadata = {"result": result}
+            return result
+        except TypeError as e:
+            error = f"bad_arguments:{e}"
+            span.exit_metadata = {"error": error}
+            return {"error": error}
+        except Exception as e:
+            error = f"tool_error:{e}"
+            span.exit_metadata = {"error": error}
+            return {"error": error}

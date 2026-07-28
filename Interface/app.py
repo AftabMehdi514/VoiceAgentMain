@@ -18,6 +18,7 @@ from tts.tts_module import generate_audio
 from core.tania_agent import process_turn
 from core.state import fresh_state
 from core.utils import detect_language
+from core.telemetry import Span
 
 # ============================================================
 # LOGIC
@@ -55,7 +56,9 @@ def process_input(audio_path, text_val, voice_name, state, history, chat_display
     history.append({"role": "user", "content": customer_text})
 
     with capture_stdout() as buf:
-        state, agent_reply, decision = process_turn(customer_text, state, history)
+        with Span("turn", metadata={"customer_input": customer_text}) as turn_span:
+            state, agent_reply, decision = process_turn(customer_text, state, history)
+            turn_span.exit_metadata = {"decision": decision}
         
         # ── Append raw JSON to history BEFORE popping tool_trace ────────────
         history.append({"role": "assistant", "content": json.dumps(decision, ensure_ascii=False)})
@@ -155,4 +158,4 @@ with gr.Blocks(title="Tania Voice Agent") as demo:
     )
 
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", server_port=7861, inbrowser=True, share=True)
+    demo.launch(server_name="0.0.0.0", server_port=7862, inbrowser=True, share=True)
