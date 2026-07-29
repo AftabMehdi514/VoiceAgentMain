@@ -58,7 +58,10 @@ def process_input(audio_path, text_val, voice_name, state, history, chat_display
     with capture_stdout() as buf:
         with Span("turn", metadata={"customer_input": customer_text}) as turn_span:
             state, agent_reply, decision = process_turn(customer_text, state, history)
-            turn_span.exit_metadata = {"decision": decision}
+            turn_span.exit_metadata = {
+                "decision": decision, 
+                "state": {k: v for k, v in state.items() if k != "debug_log"}
+            }
         
         # ── Append raw JSON to history BEFORE popping tool_trace ────────────
         history.append({"role": "assistant", "content": json.dumps(decision, ensure_ascii=False)})

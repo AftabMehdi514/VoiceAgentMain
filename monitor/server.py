@@ -5,6 +5,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import uvicorn
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from core.state import fresh_state
 
 app = FastAPI()
 
@@ -61,6 +64,10 @@ async def get_prompt():
             return {"content": f.read()}
     except Exception as e:
         return {"error": str(e)}
+
+@app.get("/api/state")
+async def get_state():
+    return fresh_state()
 
 @app.post("/api/prompt")
 async def update_prompt(request: Request):

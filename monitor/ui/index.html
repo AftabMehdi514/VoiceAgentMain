@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tania Observability Dashboard</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=5">
 </head>
 <body>
     <header class="topbar">
         <div class="logo">
             <h1>Tania</h1>
-            <span class="badge">Live Monitoring</span>
+            <span class="badge">n8n-Style Monitor</span>
         </div>
         <div class="status-indicator">
             <div id="pulse" class="pulse idle"></div>
@@ -18,36 +18,95 @@
         </div>
     </header>
 
+    <!-- Visual Architecture Flow -->
+    <div class="flow-container">
+        <div class="flow-nodes" id="live-flow">
+            <div class="flow-node" id="node-audio">
+                <div class="icon">🎙️</div>
+                <span>User Input</span>
+            </div>
+            <div class="flow-line" id="line-1"></div>
+            
+            <div class="flow-node" id="node-llm">
+                <div class="icon">🧠</div>
+                <span>LLM Brain</span>
+            </div>
+            <div class="flow-line" id="line-2"></div>
+            
+            <div class="flow-node" id="node-tool">
+                <div class="icon">⚙️</div>
+                <span>DB Tools</span>
+            </div>
+            <div class="flow-line" id="line-3"></div>
+            
+            <div class="flow-node" id="node-tts">
+                <div class="icon">🔊</div>
+                <span>Voice Output</span>
+            </div>
+        </div>
+    </div>
+
     <main class="dashboard">
-        <section class="timeline-panel">
-            <h2>Conversation Timeline</h2>
+        <!-- Main Activity Stream -->
+        <section class="activity-panel">
+            <h2>Live Turn Activity</h2>
             <div id="timeline" class="timeline">
-                <!-- Trace cards will be injected here -->
-                <div class="empty-state">Waiting for activity...</div>
+                <div class="empty-state">Waiting for conversation to start...</div>
             </div>
         </section>
 
+        <!-- Right Sidebar: State & Prompt -->
         <section class="details-panel">
             <div class="tabs">
                 <button class="tab active" onclick="switchTab('inspector')">Trace Inspector</button>
-                <button class="tab" onclick="switchTab('prompt')">Prompt Console</button>
+                <button class="tab" onclick="switchTab('state')">Live State</button>
+                <button class="tab" onclick="switchTab('prompt')">Prompt Core</button>
             </div>
-
+            
+            <!-- Trace Inspector Panel -->
             <div id="tab-inspector" class="tab-content active">
-                <div id="inspector-content" class="inspector-empty">
-                    Select a node from the timeline to view deep payload metrics.
+                <div id="inspector-content">
+                    <div class="empty-state">Click a turn to inspect details...</div>
                 </div>
             </div>
 
+            <!-- Live State Panel -->
+            <div id="tab-state" class="tab-content">
+                <div id="state-viewer">
+                    <div class="empty-state">No state data yet...</div>
+                </div>
+            </div>
+
+            <!-- Prompt Console Panel -->
             <div id="tab-prompt" class="tab-content">
                 <div class="prompt-header">
-                    <h3>System Prompt Editor</h3>
-                    <button id="save-prompt-btn" class="btn">Save & Apply</button>
+                    <h3>Dissected System Prompt</h3>
+                    <button id="save-prompt-btn" class="btn">Save All</button>
                 </div>
-                <textarea id="prompt-editor" spellcheck="false">Loading...</textarea>
+                <div id="prompt-sections">
+                    <label>Core Persona</label>
+                    <textarea id="prompt-persona" class="prompt-box" rows="5"></textarea>
+                    
+                    <label>Strict Rules</label>
+                    <textarea id="prompt-rules" class="prompt-box" rows="10"></textarea>
+                    
+                    <label>Output Format (JSON)</label>
+                    <textarea id="prompt-format" class="prompt-box" rows="5"></textarea>
+                    <!-- Hidden full text area just for syncing with backend -->
+                    <textarea id="prompt-editor" style="display:none;"></textarea>
+                </div>
             </div>
         </section>
     </main>
-    <script src="/static/app.js"></script>
+
+    <!-- Hidden Template for rendering tables -->
+    <template id="table-template">
+        <table class="data-table">
+            <thead></thead>
+            <tbody></tbody>
+        </table>
+    </template>
+
+    <script src="/static/app.js?v=5"></script>
 </body>
 </html>

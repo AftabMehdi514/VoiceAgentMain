@@ -1,0 +1,11 @@
+ok so our approach will be we will give it 
+ddls of imp and relelven tables, 
+that will go as a context 
+and acc to what custoemr says 
+the llm gennerate queyr nad exectueand 
+presetn reuslts , 
+also need to make sure it don't go outside of any 
+context,
+we start with expoierng 
+of products table later we will do this 
+
