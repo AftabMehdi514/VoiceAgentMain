@@ -3,110 +3,130 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tania Observability Dashboard</title>
-    <link rel="stylesheet" href="/static/style.css?v=5">
+    <title>Tania Ops Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css?v=13">
 </head>
 <body>
+    <div class="app-bg"></div>
+
     <header class="topbar">
-        <div class="logo">
-            <h1>Tania</h1>
-            <span class="badge">n8n-Style Monitor</span>
+        <div class="brand">
+            <div class="brand-mark">T</div>
+            <div class="brand-text">
+                <h1>Tania</h1>
+                <span class="brand-sub">Ops Console</span>
+            </div>
         </div>
-        <div class="status-indicator">
-            <div id="pulse" class="pulse idle"></div>
-            <span id="status-text">Agent Idle</span>
+
+        <div class="kpi-strip" id="kpi-strip">
+            <div class="kpi"><span class="kpi-label">Turn p50</span><span class="kpi-value" id="kpi-turn">—</span></div>
+            <div class="kpi"><span class="kpi-label">LLM p50</span><span class="kpi-value" id="kpi-llm">—</span></div>
+            <div class="kpi"><span class="kpi-label">Tool p50</span><span class="kpi-value" id="kpi-tool">—</span></div>
+            <div class="kpi"><span class="kpi-label">Tool errors</span><span class="kpi-value" id="kpi-terr">—</span></div>
+            <div class="kpi"><span class="kpi-label">Guards</span><span class="kpi-value" id="kpi-guards">—</span></div>
+        </div>
+
+        <div class="top-status">
+            <div class="conn" id="conn-badge"><span class="dot"></span><span id="conn-text">Connecting</span></div>
+            <div class="agent-status" id="agent-status">
+                <span class="pulse idle" id="pulse"></span>
+                <span id="status-text">Idle</span>
+            </div>
         </div>
     </header>
 
-    <!-- Visual Architecture Flow -->
-    <div class="flow-container">
-        <div class="flow-nodes" id="live-flow">
-            <div class="flow-node" id="node-audio">
-                <div class="icon">🎙️</div>
-                <span>User Input</span>
-            </div>
-            <div class="flow-line" id="line-1"></div>
-            
-            <div class="flow-node" id="node-llm">
-                <div class="icon">🧠</div>
-                <span>LLM Brain</span>
-            </div>
-            <div class="flow-line" id="line-2"></div>
-            
-            <div class="flow-node" id="node-tool">
-                <div class="icon">⚙️</div>
-                <span>DB Tools</span>
-            </div>
-            <div class="flow-line" id="line-3"></div>
-            
-            <div class="flow-node" id="node-tts">
-                <div class="icon">🔊</div>
-                <span>Voice Output</span>
-            </div>
-        </div>
+    <div class="pipeline" id="pipeline">
+        <div class="pipe-node" data-step="input"><span class="pipe-label">Input</span></div>
+        <div class="pipe-line" data-line="1"></div>
+        <div class="pipe-node" data-step="stt"><span class="pipe-label">STT</span></div>
+        <div class="pipe-line" data-line="2"></div>
+        <div class="pipe-node" data-step="llm"><span class="pipe-label">LLM</span></div>
+        <div class="pipe-line" data-line="3"></div>
+        <div class="pipe-node" data-step="guard"><span class="pipe-label">Guards</span></div>
+        <div class="pipe-line" data-line="4"></div>
+        <div class="pipe-node" data-step="tool"><span class="pipe-label">Tools</span></div>
+        <div class="pipe-line" data-line="5"></div>
+        <div class="pipe-node" data-step="tts"><span class="pipe-label">TTS</span></div>
     </div>
 
-    <main class="dashboard">
-        <!-- Main Activity Stream -->
-        <section class="activity-panel">
-            <h2>Live Turn Activity</h2>
-            <div id="timeline" class="timeline">
-                <div class="empty-state">Waiting for conversation to start...</div>
+    <main class="console">
+        <aside class="pane left-pane glass">
+            <div class="pane-header">
+                <h2>Sessions</h2>
+                <div class="filters">
+                    <input type="search" id="filter-q" placeholder="Search…" />
+                    <select id="filter-mode">
+                        <option value="all">All turns</option>
+                        <option value="errors">Errors</option>
+                        <option value="tools">With tools</option>
+                        <option value="guards">With guards</option>
+                        <option value="slow">Slow (&gt;5s)</option>
+                    </select>
+                </div>
+            </div>
+            <div id="session-list" class="session-list">
+                <div class="empty">Waiting for agent activity…</div>
+            </div>
+        </aside>
+
+        <section class="pane center-pane glass">
+            <div class="pane-header">
+                <div>
+                    <h2 id="waterfall-title">Turn Flow</h2>
+                    <p class="muted" id="waterfall-sub">What goes into the model · what comes back · tools</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn ghost" id="btn-export-turn" disabled>Export turn</button>
+                    <button class="btn ghost" id="btn-export-session" disabled>Export session</button>
+                </div>
+            </div>
+            <div id="context-bar-wrap" class="context-bar-wrap" hidden>
+                <div class="context-bar-meta">
+                    <span>Context fill</span>
+                    <span id="context-bar-pct">0%</span>
+                </div>
+                <div class="context-bar-track"><div class="context-bar-fill" id="context-bar-fill"></div></div>
+            </div>
+            <div id="waterfall" class="waterfall">
+                <div class="empty">No turn selected</div>
             </div>
         </section>
 
-        <!-- Right Sidebar: State & Prompt -->
-        <section class="details-panel">
+        <aside class="pane right-pane glass">
             <div class="tabs">
-                <button class="tab active" onclick="switchTab('inspector')">Trace Inspector</button>
-                <button class="tab" onclick="switchTab('state')">Live State</button>
-                <button class="tab" onclick="switchTab('prompt')">Prompt Core</button>
+                <button class="tab active" data-tab="state">State</button>
+                <button class="tab" data-tab="metrics">Metrics</button>
+                <button class="tab" data-tab="prompt">Prompt</button>
             </div>
-            
-            <!-- Trace Inspector Panel -->
-            <div id="tab-inspector" class="tab-content active">
-                <div id="inspector-content">
-                    <div class="empty-state">Click a turn to inspect details...</div>
+
+            <div id="tab-state" class="tab-panel active">
+                <div id="state-content" class="tab-body">
+                    <div class="empty">Select a turn to see before / after state</div>
                 </div>
             </div>
 
-            <!-- Live State Panel -->
-            <div id="tab-state" class="tab-content">
-                <div id="state-viewer">
-                    <div class="empty-state">No state data yet...</div>
-                </div>
+            <div id="tab-metrics" class="tab-panel">
+                <div id="metrics-content" class="tab-body"></div>
             </div>
 
-            <!-- Prompt Console Panel -->
-            <div id="tab-prompt" class="tab-content">
-                <div class="prompt-header">
-                    <h3>Dissected System Prompt</h3>
-                    <button id="save-prompt-btn" class="btn">Save All</button>
+            <div id="tab-prompt" class="tab-panel">
+                <div class="prompt-toolbar">
+                    <div class="prompt-mode">
+                        <button class="chip active" id="btn-prompt-view" type="button">View</button>
+                        <button class="chip" id="btn-prompt-edit" type="button">Edit</button>
+                    </div>
+                    <span class="muted" id="prompt-saved">Not saved</span>
+                    <button class="btn primary" id="btn-save-prompt" hidden>Save</button>
                 </div>
-                <div id="prompt-sections">
-                    <label>Core Persona</label>
-                    <textarea id="prompt-persona" class="prompt-box" rows="5"></textarea>
-                    
-                    <label>Strict Rules</label>
-                    <textarea id="prompt-rules" class="prompt-box" rows="10"></textarea>
-                    
-                    <label>Output Format (JSON)</label>
-                    <textarea id="prompt-format" class="prompt-box" rows="5"></textarea>
-                    <!-- Hidden full text area just for syncing with backend -->
-                    <textarea id="prompt-editor" style="display:none;"></textarea>
-                </div>
+                <div id="prompt-view" class="prompt-view tab-body"></div>
+                <textarea id="prompt-editor" class="prompt-editor" spellcheck="false" hidden></textarea>
             </div>
-        </section>
+        </aside>
     </main>
 
-    <!-- Hidden Template for rendering tables -->
-    <template id="table-template">
-        <table class="data-table">
-            <thead></thead>
-            <tbody></tbody>
-        </table>
-    </template>
-
-    <script src="/static/app.js?v=5"></script>
+    <script src="/static/app.js?v=13"></script>
 </body>
 </html>

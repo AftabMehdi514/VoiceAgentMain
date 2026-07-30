@@ -1,0 +1,54 @@
+ok so our approach will be we will give it 
+ddls of imp and relelven tables, 
+that will go as a context 
+and acc to what custoemr says 
+the llm gennerate queyr nad exectueand 
+presetn reuslts , 
+also need to make sure it don't go outside of any 
+context,
+we start with expoierng 
+of products table later we will do this 
+
+
+
+ok as you know previlsly weare owkrin differently , lets start owkr on 
+agnet and lets setup this and imporv eit step by stpe, 
+the previous code iswritten by smaller not pwoerful modles , 
+not intelligent ones, and feel free to approve form me archtichagnes 
+ok , lets start , anddo it step by stpe , 
+first lets sovle the problem where customer comes and asks for products 
+availbabel
+
+once thing that seniour told me is that instead of amking a tool and callin
+its hardcoded , we give the some tables that 
+'are relevelnt for customer form (our db is larg) 
+we give it ddl as a context , 
+then the modesl design a queye and gets the reuslts
+this willmake our system ultra intelligent 
+we will wokr later on security but for now we need wokring thing 
+ok first lets do it for shoiwng products, and our aim is to 
+setup thigns upto product selection 
+user comes asks for porducts : 
+  1. we need to makesure tht we only shows products that are available, 
+  so we need to check the database which column is telling us aviale or not
+  2.user comes and asks for products what products you have ? then what shldu we show , 
+  fethc osme products form db at that time? 
+  3. we need to handle then user tells his own choice of productmay be tells
+  name , or anything to land him on his desired proects that is exact ormost 
+  closed to hid demand we need to land him sowhat should be strategy for htis 
+  4. here he may ask any quesiotn and our agent shodu take intelligent decsing
+  like he may be tell about his demand and our agent should be able 
+  to land him his desired products
+
+  don't delete anyting in system prompt that is not related to it, just make sure 
+  we are building it stpe by stpe so our sysmte pormpt shoudl not just lean toward one hting 
+  we need to keep the whole systme intact, 
+  ok so first plan thougl production level how these tings will be handled
+  keeping in in hte latency issue or large db query we have a large customer based
+  feel free to ask anything
+
+  also we need to make a stragety and and we need to give him whihc tables we soudl give for 
+  our voiceagent , and what columsn how we gonna findthem 
+  you can run scirpt to db to get aobut the db as well, 
+
+  

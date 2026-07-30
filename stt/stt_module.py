@@ -22,11 +22,16 @@ from faster_whisper import WhisperModel
 MODEL_NAME = "large-v3-turbo"
 DOWNLOAD_ROOT = "E:\\WhisperModels"
 
-print(f"[STT] Loading local model '{MODEL_NAME}' from {DOWNLOAD_ROOT}...")
-model = WhisperModel(MODEL_NAME, device="cuda", compute_type="float16", download_root=DOWNLOAD_ROOT)
-print("[STT] Model loaded successfully!")
+# print(f"[STT] Loading local model '{MODEL_NAME}' from {DOWNLOAD_ROOT}...")
+# model = WhisperModel(MODEL_NAME, device="cuda", compute_type="float16", download_root=DOWNLOAD_ROOT)
+# print("[STT] Model loaded successfully!")
+model = None
 
 def transcribe_audio(audio_path):
+    if model is None:
+        # Empty transcript — caller must not treat the disabled message as customer text
+        return "", "STT disabled (Whisper unloaded to free VRAM). Latency: 0.00s\n"
+
     t0 = time.perf_counter()
     segments, info = model.transcribe(audio_path, beam_size=5)
     customer_text = ""
@@ -34,7 +39,7 @@ def transcribe_audio(audio_path):
         customer_text += segment.text
     customer_text = customer_text.strip()
     stt_time = time.perf_counter() - t0
-    
+
     debug_str = f"STT Latency: {stt_time:.2f}s | Lang: {info.language} ({info.language_probability:.2f})\n"
-    
+
     return customer_text, debug_str

@@ -44,6 +44,7 @@ def qwen_chat(messages, max_new_tokens=400, temperature=0.7):
             
         except Exception as e:
             print(f"Error communicating with local LLM server: {e}")
+            span.exit_metadata = {"response": "{}", "error": str(e)}
             return "{}"
 
 if __name__ == "__main__":

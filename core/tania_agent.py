@@ -5,6 +5,7 @@ from core.utils import detect_language, strip_cjk_leakage, parse_first_json
 from core.prompts import ORDER_SYSTEM_PROMPT
 from db.tools import execute_tool, get_top_products, check_active_products, build_basket_fingerprint
 from core.state import fresh_state, update_state, build_context, is_genuine_confirmation
+from core.telemetry import emit
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -46,22 +47,38 @@ def process_turn(customer_input, state, history):
     decision = None
     tool_trace = []
     guard_counts = {}
+    guard_events = []
 
     def trigger_guard(guard_name, message, decision, rollback_step=None):
         guard_counts[guard_name] = guard_counts.get(guard_name, 0) + 1
+        escalated = guard_counts[guard_name] >= 2
+        guard_events.append({
+            "name": guard_name,
+            "message": message,
+            "rollback_step": rollback_step,
+            "count": guard_counts[guard_name],
+            "escalated": escalated,
+        })
+        emit("guard", {
+            "name": guard_name,
+            "message": message,
+            "rollback_step": rollback_step,
+            "count": guard_counts[guard_name],
+            "escalated": escalated,
+        })
         decision["tool_call"] = None
         if rollback_step:
             decision["order_step"] = rollback_step
         messages.append({"role": "assistant", "content": _json_safe(decision)})
-        if guard_counts[guard_name] >= 2:
+        if escalated:
             messages.append({
                 "role": "user",
                 "content": f"[SYSTEM Guard Escalation] You have repeatedly failed the '{guard_name}'. You MUST NOT call any tools this turn. Instead, explicitly ask the customer to reconfirm or correct the specific information that caused this."
             })
-            return True # Escalated
+            return True  # Escalated
         else:
             messages.append({
-                "role": "user", 
+                "role": "user",
                 "content": f"[SYSTEM Guard] {message} Please correct your response."
             })
             return False
@@ -226,22 +243,24 @@ def process_turn(customer_input, state, history):
             decision["order_step"] = "confirmation"
 
     decision["_tool_trace"] = tool_trace
+    decision["_guard_events"] = guard_events
 
     # ── State Diff & Debug Log ──────────────────────────────────────────────
     old_state_snapshot = {k: v for k, v in state.items() if k != "debug_log"}
-    
+
     state = update_state(state, decision)
 
     new_state_snapshot = {k: v for k, v in state.items() if k != "debug_log"}
     state_diff = {k: new_state_snapshot[k] for k in new_state_snapshot if new_state_snapshot[k] != old_state_snapshot.get(k)}
-    
+    decision["_state_diff"] = state_diff
+
     turn_log = {
         "customer_input": customer_input,
         "guard_triggers": guard_counts,
         "tool_trace": tool_trace,
         "state_diff": state_diff,
-        "final_decision": decision,
-        "messages_exchange": messages  # Full prompt and response exchange this turn
+        "final_decision": {k: v for k, v in decision.items() if not str(k).startswith("_")},
+        "messages_exchange": messages,
     }
     state["debug_log"].append(turn_log)
 
