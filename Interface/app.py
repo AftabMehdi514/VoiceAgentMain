@@ -4,6 +4,8 @@ import sys
 import json
 import io
 import uuid
+import queue
+import threading
 import contextlib
 import gradio as gr
 
@@ -39,6 +41,15 @@ def _state_public(state):
     return {k: v for k, v in state.items() if k != "debug_log"}
 
 
+def _set_assistant_text(chat_display, text):
+    display = list(chat_display)
+    if display and display[-1].get("role") == "assistant":
+        display[-1] = {"role": "assistant", "content": text}
+    else:
+        display.append({"role": "assistant", "content": text})
+    return display
+
+
 def process_input(audio_path, text_val, voice_name, state, history, chat_display, session_id):
     if not session_id:
         session_id = str(uuid.uuid4())
@@ -66,7 +77,8 @@ def process_input(audio_path, text_val, voice_name, state, history, chat_display
 
     if not customer_text:
         clear_turn()
-        return state, history, chat_display, "No input provided.", None, session_id
+        yield state, history, chat_display, "No input provided.", None, session_id
+        return
 
     if state is None:
         state = fresh_state()
@@ -79,62 +91,144 @@ def process_input(audio_path, text_val, voice_name, state, history, chat_display
     state["language"] = detect_language(customer_text)
     history.append({"role": "user", "content": customer_text})
 
-    audio_output = None
-    with capture_stdout() as buf:
-        with Span(
-            "turn",
-            metadata={
-                "customer_input": customer_text,
-                "input_mode": input_mode,
-                "order_step_before": state_before.get("order_step"),
-                "language": state.get("language"),
-                "state_before": state_before,
-            },
-        ) as turn_span:
-            state, agent_reply, decision = process_turn(customer_text, state, history)
+    display = list(chat_display)
+    display.append({"role": "user", "content": customer_text})
+    display.append({"role": "assistant", "content": "…"})
 
-            tool_trace = list(decision.get("_tool_trace") or [])
-            guards = list(decision.get("_guard_events") or [])
-            state_diff = decision.get("_state_diff") or {}
+    debug_live = debug_stt + "\n--- Streaming ---\n"
+    yield state, history, display, debug_live, None, session_id
 
-            with Span(
-                "tts",
-                metadata={"voice": voice_name, "char_length": len(agent_reply or "")},
-            ) as tts_span:
-                audio_output = generate_audio(agent_reply, voice_name=voice_name)
-                tts_span.exit_metadata = {
-                    "voice": voice_name,
-                    "char_length": len(agent_reply or ""),
-                    "ok": bool(audio_output),
+    event_q: queue.Queue = queue.Queue()
+    result_box = {}
+
+    def on_partial_reply(text):
+        event_q.put(("partial", text))
+
+    def on_status(msg):
+        event_q.put(("status", msg))
+
+    def worker():
+        set_context(session_id=session_id, turn_id=turn_id)
+        try:
+            with capture_stdout() as buf:
+                with Span(
+                    "turn",
+                    metadata={
+                        "customer_input": customer_text,
+                        "input_mode": input_mode,
+                        "order_step_before": state_before.get("order_step"),
+                        "language": state.get("language"),
+                        "state_before": state_before,
+                    },
+                ) as turn_span:
+                    new_state, agent_reply, decision = process_turn(
+                        customer_text,
+                        state,
+                        history,
+                        on_partial_reply=on_partial_reply,
+                        on_status=on_status,
+                    )
+
+                    tool_trace = list(decision.get("_tool_trace") or [])
+                    guards = list(decision.get("_guard_events") or [])
+                    state_diff = decision.get("_state_diff") or {}
+
+                    with Span(
+                        "tts",
+                        metadata={"voice": voice_name, "char_length": len(agent_reply or "")},
+                    ) as tts_span:
+                        audio_output = generate_audio(agent_reply, voice_name=voice_name)
+                        tts_span.exit_metadata = {
+                            "voice": voice_name,
+                            "char_length": len(agent_reply or ""),
+                            "ok": bool(audio_output),
+                        }
+
+                    turn_span.exit_metadata = {
+                        "decision": {k: v for k, v in decision.items() if not str(k).startswith("_")},
+                        "state": _state_public(new_state),
+                        "state_diff": state_diff,
+                        "agent_reply": agent_reply,
+                        "tool_trace": tool_trace,
+                        "guards": guards,
+                    }
+
+                history.append({"role": "assistant", "content": json.dumps(
+                    {k: v for k, v in decision.items() if not str(k).startswith("_")},
+                    ensure_ascii=False,
+                )})
+
+                decision.pop("_tool_trace", None)
+                decision.pop("_guard_events", None)
+                decision.pop("_state_diff", None)
+
+                print(f"\n[LLM Decision]\n{json.dumps(decision, ensure_ascii=False, indent=2)}")
+                if tool_trace:
+                    print(f"\n[Tool Calls]\n{json.dumps(tool_trace, ensure_ascii=False, indent=2)}")
+                print(f"\n[State]\n{json.dumps(new_state, ensure_ascii=False, indent=2)}")
+                print(f"\nAgent : {agent_reply}\n{'-'*60}")
+
+                result_box["ok"] = {
+                    "state": new_state,
+                    "agent_reply": agent_reply,
+                    "decision": decision,
+                    "tool_trace": tool_trace,
+                    "audio_output": audio_output,
+                    "logs": buf.getvalue(),
                 }
+        except Exception as exc:
+            result_box["error"] = exc
+        finally:
+            event_q.put(("done", None))
 
-            turn_span.exit_metadata = {
-                "decision": {k: v for k, v in decision.items() if not str(k).startswith("_")},
-                "state": _state_public(state),
-                "state_diff": state_diff,
-                "agent_reply": agent_reply,
-                "tool_trace": tool_trace,
-                "guards": guards,
-            }
+    thread = threading.Thread(target=worker, daemon=True)
+    thread.start()
 
-        history.append({"role": "assistant", "content": json.dumps(
-            {k: v for k, v in decision.items() if not str(k).startswith("_")},
-            ensure_ascii=False,
-        )})
+    last_yield = 0.0
+    pending_text = None
+    while True:
+        try:
+            kind, payload = event_q.get(timeout=0.05)
+        except queue.Empty:
+            if pending_text is not None and (time.time() - last_yield) >= 0.04:
+                display = _set_assistant_text(display, pending_text)
+                pending_text = None
+                last_yield = time.time()
+                yield state, history, display, debug_live, None, session_id
+            continue
 
-        decision.pop("_tool_trace", None)
-        decision.pop("_guard_events", None)
-        decision.pop("_state_diff", None)
+        if kind in ("partial", "status"):
+            pending_text = payload
+            now = time.time()
+            if kind == "status" or (now - last_yield) >= 0.04:
+                display = _set_assistant_text(display, payload)
+                pending_text = None
+                last_yield = now
+                if kind == "status":
+                    debug_live = debug_stt + f"\n--- Streaming ---\n[status] {payload}\n"
+                yield state, history, display, debug_live, None, session_id
+        elif kind == "done":
+            if pending_text is not None:
+                display = _set_assistant_text(display, pending_text)
+                yield state, history, display, debug_live, None, session_id
+            break
 
-        print(f"\n[LLM Decision]\n{json.dumps(decision, ensure_ascii=False, indent=2)}")
-        if tool_trace:
-            print(f"\n[Tool Calls]\n{json.dumps(tool_trace, ensure_ascii=False, indent=2)}")
-        print(f"\n[State]\n{json.dumps(state, ensure_ascii=False, indent=2)}")
-        print(f"\nAgent : {agent_reply}\n{'-'*60}")
+    thread.join(timeout=5)
 
-    terminal_logs = buf.getvalue()
-    chat_display.append({"role": "user", "content": customer_text})
-    chat_display.append({"role": "assistant", "content": agent_reply})
+    if result_box.get("error"):
+        clear_turn()
+        err = result_box["error"]
+        display = _set_assistant_text(display, f"Error: {err}")
+        yield state, history, display, debug_stt + f"\nError: {err}\n", None, session_id
+        return
+
+    packed = result_box["ok"]
+    state = packed["state"]
+    agent_reply = packed["agent_reply"]
+    audio_output = packed["audio_output"]
+    terminal_logs = packed["logs"]
+
+    display = _set_assistant_text(display, agent_reply)
 
     debug_info = debug_stt + "\n--- Terminal Logs ---\n" + terminal_logs
     debug_info += f"\n[Monitor] session={session_id[:8]}… turn={turn_id[:8]}…\n"
@@ -149,15 +243,15 @@ def process_input(audio_path, text_val, voice_name, state, history, chat_display
         history = []
 
     clear_turn()
-    return state, history, chat_display, debug_info, audio_output, session_id
+    yield state, history, display, debug_info, audio_output, session_id
 
 
 def process_text(text_val, voice_name, state, history, chat_display, session_id):
-    return process_input(None, text_val, voice_name, state, history, chat_display, session_id)
+    yield from process_input(None, text_val, voice_name, state, history, chat_display, session_id)
 
 
 def process_audio_wrapper(audio_path, voice_name, state, history, chat_display, session_id):
-    return process_input(audio_path, None, voice_name, state, history, chat_display, session_id)
+    yield from process_input(audio_path, None, voice_name, state, history, chat_display, session_id)
 
 
 def clear_all(session_id):

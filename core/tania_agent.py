@@ -3,7 +3,7 @@ import re
 import sys
 import time
 from core.llm_client import qwen_chat
-from core.utils import detect_language, strip_cjk_leakage, parse_first_json
+from core.utils import detect_language, strip_cjk_leakage, parse_first_json, extract_partial_response
 from core.prompts import ORDER_SYSTEM_PROMPT
 from db.tools import execute_tool, check_active_products, build_basket_fingerprint
 from db.sql_sandbox import load_relevant_ddl
@@ -233,23 +233,25 @@ def needs_catalog_refresh(customer_input: str, state, tool_trace) -> bool:
     return True
 
 
-def qwen_call(messages, max_new_tokens=700):
+def qwen_call(messages, max_new_tokens=700, on_token=None):
     for m in messages:
         if m["role"] == "system" and "/no_think" not in m["content"]:
             m["content"] += " /no_think"
-            
-    text = qwen_chat(messages, max_new_tokens=max_new_tokens)
-        
+
+    text = qwen_chat(messages, max_new_tokens=max_new_tokens, on_token=on_token)
+
     return strip_cjk_leakage(text)
 
 MAX_TOOL_ITERATIONS = 4
 
-def process_turn(customer_input, state, history):
+def process_turn(customer_input, state, history, on_partial_reply=None, on_status=None):
     """
     Main turn handler.
     - Feeds the COMPLETE history to the LLM every turn.
     - Caches all tool results into state.
     - Appends the raw JSON decision to history (not plain text) to preserve JSON format.
+    - on_partial_reply(str): UI callback with extracted customer-facing text while streaming
+    - on_status(str): UI callback for tool/status messages (e.g. Checking…)
     """
     context_json = build_context(state)
 
@@ -267,6 +269,13 @@ def process_turn(customer_input, state, history):
     tool_trace = []
     guard_counts = {}
     guard_events = []
+
+    def _emit_partial_from_raw(raw_so_far: str):
+        if not on_partial_reply:
+            return
+        partial = extract_partial_response(raw_so_far)
+        if partial is not None:
+            on_partial_reply(partial)
 
     def trigger_guard(guard_name, message, decision, rollback_step=None):
         guard_counts[guard_name] = guard_counts.get(guard_name, 0) + 1
@@ -303,7 +312,13 @@ def process_turn(customer_input, state, history):
             return False
 
     for _ in range(MAX_TOOL_ITERATIONS + 1):
-        raw = qwen_call(messages)
+        stream_buf = []
+
+        def on_token(delta, _buf=stream_buf):
+            _buf.append(delta)
+            _emit_partial_from_raw("".join(_buf))
+
+        raw = qwen_call(messages, on_token=on_token)
         decision = parse_first_json(raw)
 
         if not decision:
@@ -441,6 +456,11 @@ def process_turn(customer_input, state, history):
 
         tool_name = tool_call.get("name")
         tool_args = tool_call.get("arguments") or {}
+
+        if on_status:
+            on_status(
+                "لحظة من فضلك…" if state.get("language") == "ar" else "Checking…"
+            )
 
         tool_result = execute_tool(tool_name, tool_args)
         tool_trace.append({"name": tool_name, "arguments": tool_args, "result": tool_result})

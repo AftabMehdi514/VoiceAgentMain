@@ -1,15 +1,12 @@
-================================================================================
+
 TANIA VOICE AGENT — RELEVANT DB SCHEMA (LLM REFERENCE)
-================================================================================
+
 Database: tania_db (MySQL)
-Explored: ~170 tables total. This file keeps ONLY what a voice agent needs
-for product discovery, ordering, tracking, customer/address, and temp writes.
 Do NOT invent tables/columns that are not listed here.
 
 Purpose of this file
   Appended at runtime to the system prompt so the LLM generates correct SELECTs
-  (and understands read-only production vs agent temp writes).
-  query_catalog allowlist matches the READ tables listed below (Phases 1–5).
+
 
 Voice use cases covered
   1. Product showing / demand search
@@ -53,7 +50,7 @@ A) PRODUCT CATALOG  (show / search / recommend)
 Row scale: small (~84). Primary catalog for voice.
 USE FOR: browse, land/search by size/name, price, gallon vs carton.
 
-VOICE COLUMNS (use these)
+ COLUMNS (use these)
   product_id           INT PK           Basket id / speak id
   product_name         TEXT             JSON {"en","ar"} — search with LIKE
   unit                 VARCHAR(50)      JSON {"en","ar"} — Gallon / Carton / …
@@ -86,13 +83,13 @@ IGNORE for voice (ops/ERP noise on products)
   show_in_load, show_in_sales, 5g, pet, my5g, mypet, product_type,
   created_at, updated_at
 
-CATEGORY HINTS (from live data)
+CATEGORY HINTS
   category_id=1 → Carton
   category_id=2 → Gallon
   Prefer unit/product_name filters; category join is optional helper.
 
 
-### TABLE categories  [SUPPORT — READ]
+TABLE categories  [SUPPORT — READ]
 Row scale: tiny (3). Carton / Gallon / Test.
 VOICE COLUMNS
   category_id          INT PK
@@ -390,78 +387,6 @@ G) IRRELEVANT FAMILIES (do not use for voice SQL)
 
 When unsure: do NOT guess a table. Prefer an existing tool or ask to clarify.
 
---------------------------------------------------------------------------------
-H) EXAMPLE QUERY INTENTS (illustrative — write fresh SQL each time)
---------------------------------------------------------------------------------
-
--- 1) Browse / “what can I order?”
-SELECT product_id, product_name, unit, price_vat
-FROM products
-WHERE status = 1 AND show_in_oms = 1 AND deleted_at IS NULL AND price_vat > 0
-ORDER BY product_sort
-LIMIT 5;
-
--- 2) Land on size (e.g. 200ml)
-SELECT product_id, product_name, unit, price_vat, bottle_quantity
-FROM products
-WHERE status = 1 AND show_in_oms = 1 AND deleted_at IS NULL AND price_vat > 0
-  AND product_name LIKE '%200%'
-ORDER BY product_sort
-LIMIT 5;
-
--- 3) Home / family → gallons
-SELECT product_id, product_name, unit, price_vat
-FROM products
-WHERE status = 1 AND show_in_oms = 1 AND deleted_at IS NULL AND price_vat > 0
-  AND (unit LIKE '%Gallon%' OR product_name LIKE '%Gallon%' OR category_id = 2)
-ORDER BY product_sort
-LIMIT 5;
-
--- 4) Trip / small bottles
-SELECT product_id, product_name, unit, price_vat, bottle_quantity
-FROM products
-WHERE status = 1 AND show_in_oms = 1 AND deleted_at IS NULL AND price_vat > 0
-  AND unit LIKE '%Carton%'
-  AND (product_name LIKE '%200%' OR product_name LIKE '%330%')
-ORDER BY product_sort
-LIMIT 5;
-
--- 5) Customer by mobile
-SELECT customer_id, name, email
-FROM customers
-WHERE mobile = '05XXXXXXXX'
-LIMIT 1;
-
--- 6) Latest address
-SELECT address_id, address, map_info, latitude, longitude
-FROM addresses
-WHERE customer_id = ? AND deleted_at IS NULL
-ORDER BY updated_at DESC
-LIMIT 1;
-
--- 7) Track latest production orders + status title
-SELECT o.order_id, o.order_number, o.grand_total, o.created_at, o.delivery_date,
-       os.order_status_title, os.`key` AS status_key
-FROM orders o
-JOIN order_statuses os ON os.order_status_id = o.order_status_id
-WHERE o.customer_id = ? AND o.deleted_at IS NULL
-ORDER BY o.created_at DESC
-LIMIT 5;
-
--- 8) Lines on an order
-SELECT oi.product_id, oi.quantity, p.product_name, oi.unit_price_vat, oi.price
-FROM order_items oi
-JOIN products p ON p.product_id = oi.product_id
-WHERE oi.order_id = ? AND oi.deleted_at IS NULL
-LIMIT 20;
-
--- 9) Delivery row for an order
-SELECT d.delivery_id, d.delivery_date, d.delivery_time, d.actual_arrival_time,
-       d.status, d.delivery_trip_id
-FROM deliveries d
-WHERE d.order_id = ? AND d.deleted_at IS NULL
-ORDER BY d.delivery_id DESC
-LIMIT 3;
 
 --------------------------------------------------------------------------------
 I) ALLOWLIST POLICY (query_catalog SELECT — ENABLED)
@@ -476,6 +401,4 @@ Phases 1–5 are ENABLED for SELECT via query_catalog (sandbox allowlist):
 Never allow: DELETE/UPDATE/INSERT/DDL; never allow ERP/log/fleet tables.
 Huge tables MUST use tight WHERE (mobile / customer_id / order_id) + LIMIT.
 
-================================================================================
-END — Relevant DB Schema for Tania Voice Agent
-================================================================================
+

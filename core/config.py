@@ -34,5 +34,9 @@ HF_API_TOKEN = os.environ.get(
 HF_MODEL_ID = "Qwen/Qwen3-14B"
 DBPassword = 'aftab'
 
+# Local OpenAI-compatible inference (LM Studio default; swap URL for other servers).
+LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "http://127.0.0.1:1234/v1").rstrip("/")
+LLM_MODEL_ID = os.environ.get("LLM_MODEL_ID", "qwen-3-8b")
+
 # Define the specific folder in the project where the model will be stored
 LOCAL_MODEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "LocalModels", HF_MODEL_ID.replace("/", "_"))
