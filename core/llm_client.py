@@ -1,16 +1,19 @@
 """
 llm_client.py
 ====================================================================
-Local LM Studio API client for Qwen3-14B.
+Local LM Studio API client.
 
-This replaces the Hugging Face API client, routing the request
-to the local LM Studio instance running on port 1234.
+Currently pointed at google/gemma-4-12b (Qwen3-14B kept installed in LM Studio).
+Routes requests to the local LM Studio instance on port 1234.
 ====================================================================
 """
 
 import requests
 import json
 from core.telemetry import Span
+
+# LM Studio model id currently loaded for inference (do not delete other local models)
+LM_MODEL_ID = "google/gemma-4-12b"
 
 def qwen_chat(messages, max_new_tokens=400, temperature=0.7):
     """
@@ -21,7 +24,7 @@ def qwen_chat(messages, max_new_tokens=400, temperature=0.7):
     url = "http://127.0.0.1:1234/v1/chat/completions"
     
     payload = {
-        "model": "local-model",
+        "model": LM_MODEL_ID,
         "messages": messages,
         "max_tokens": max_new_tokens,
         "temperature": temperature,

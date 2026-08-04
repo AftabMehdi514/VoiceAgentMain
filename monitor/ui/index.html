@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=13">
+    <link rel="stylesheet" href="/static/style.css?v=20">
 </head>
 <body>
     <div class="app-bg"></div>
@@ -41,23 +41,22 @@
     <div class="pipeline" id="pipeline">
         <div class="pipe-node" data-step="input"><span class="pipe-label">Input</span></div>
         <div class="pipe-line" data-line="1"></div>
-        <div class="pipe-node" data-step="stt"><span class="pipe-label">STT</span></div>
-        <div class="pipe-line" data-line="2"></div>
         <div class="pipe-node" data-step="llm"><span class="pipe-label">LLM</span></div>
-        <div class="pipe-line" data-line="3"></div>
+        <div class="pipe-line" data-line="2"></div>
         <div class="pipe-node" data-step="guard"><span class="pipe-label">Guards</span></div>
-        <div class="pipe-line" data-line="4"></div>
+        <div class="pipe-line" data-line="3"></div>
         <div class="pipe-node" data-step="tool"><span class="pipe-label">Tools</span></div>
-        <div class="pipe-line" data-line="5"></div>
-        <div class="pipe-node" data-step="tts"><span class="pipe-label">TTS</span></div>
     </div>
 
     <main class="console">
         <aside class="pane left-pane glass">
-            <div class="pane-header">
-                <h2>Sessions</h2>
+            <div class="pane-header left-head">
+                <div class="left-head-row">
+                    <h2>Sessions</h2>
+                    <button class="btn ghost sm" id="btn-clear-sessions" type="button" title="Clear session list">Clear</button>
+                </div>
                 <div class="filters">
-                    <input type="search" id="filter-q" placeholder="Search…" />
+                    <input type="search" id="filter-q" placeholder="Search turns…" />
                     <select id="filter-mode">
                         <option value="all">All turns</option>
                         <option value="errors">Errors</option>
@@ -76,19 +75,12 @@
             <div class="pane-header">
                 <div>
                     <h2 id="waterfall-title">Turn Flow</h2>
-                    <p class="muted" id="waterfall-sub">What goes into the model · what comes back · tools</p>
+                    <p class="muted" id="waterfall-sub">Select a turn on the left</p>
                 </div>
                 <div class="header-actions">
                     <button class="btn ghost" id="btn-export-turn" disabled>Export turn</button>
                     <button class="btn ghost" id="btn-export-session" disabled>Export session</button>
                 </div>
-            </div>
-            <div id="context-bar-wrap" class="context-bar-wrap" hidden>
-                <div class="context-bar-meta">
-                    <span>Context fill</span>
-                    <span id="context-bar-pct">0%</span>
-                </div>
-                <div class="context-bar-track"><div class="context-bar-fill" id="context-bar-fill"></div></div>
             </div>
             <div id="waterfall" class="waterfall">
                 <div class="empty">No turn selected</div>
@@ -106,6 +98,7 @@
                 <div id="state-content" class="tab-body">
                     <div class="empty">Select a turn to see before / after state</div>
                 </div>
+                <div id="context-usage" class="context-usage" hidden></div>
             </div>
 
             <div id="tab-metrics" class="tab-panel">
@@ -116,7 +109,7 @@
                 <div class="prompt-toolbar">
                     <div class="prompt-mode">
                         <button class="chip active" id="btn-prompt-view" type="button">View</button>
-                        <button class="chip" id="btn-prompt-edit" type="button">Edit</button>
+                        <button class="chip" id="btn-prompt-edit" type="button">Edit rules</button>
                     </div>
                     <span class="muted" id="prompt-saved">Not saved</span>
                     <button class="btn primary" id="btn-save-prompt" hidden>Save</button>
@@ -127,6 +120,6 @@
         </aside>
     </main>
 
-    <script src="/static/app.js?v=13"></script>
+    <script src="/static/app.js?v=20"></script>
 </body>
 </html>

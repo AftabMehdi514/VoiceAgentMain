@@ -71,10 +71,19 @@ def get_top_products():
 
 
 def get_products():
-    """Return the cached top products (same as get_top_products — tool alias for the LLM)."""
+    """Internal helper (not LLM-facing). Same as get_top_products."""
     return get_top_products()
 
-from db.product_search import search_products
+from db.sql_sandbox import execute_catalog_sql, load_relevant_ddl
+
+
+def query_catalog(sql):
+    """
+    Execute an LLM-authored SELECT against the voice-agent schema sandbox.
+    No hardcoded search SQL — the model supplies the query from Relevant_DB_Schema.
+    """
+    return execute_catalog_sql(sql)
+
 
 def check_active_products(product_ids):
     """Takes a list of product_ids and returns a set of valid active product_ids in the DB."""
@@ -336,9 +345,7 @@ TOOL_REGISTRY = {
     "get_customer_orders": get_customer_orders,
     "get_latest_address": get_latest_address,
     "save_customer_and_address": save_customer_and_address,
-    "get_products": get_products,
-    "get_top_products": get_top_products,
-    "search_products": search_products,
+    "query_catalog": query_catalog,
     "get_price": get_price,
     "calculate_order_total": calculate_order_total,
     "create_order": create_order,

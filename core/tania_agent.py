@@ -1,18 +1,237 @@
 import json
+import re
 import sys
+import time
 from core.llm_client import qwen_chat
 from core.utils import detect_language, strip_cjk_leakage, parse_first_json
 from core.prompts import ORDER_SYSTEM_PROMPT
-from db.tools import execute_tool, get_top_products, check_active_products, build_basket_fingerprint
+from db.tools import execute_tool, check_active_products, build_basket_fingerprint
+from db.sql_sandbox import load_relevant_ddl
 from core.state import fresh_state, update_state, build_context, is_genuine_confirmation
 from core.telemetry import emit
 
 sys.stdout.reconfigure(encoding="utf-8")
 
 print("Starting Tania agent — Local LLM Server (LM Studio).")
-# Warm up the product cache at startup so it is never fetched mid-conversation
-_startup_products = get_top_products()
-print(f"Product catalog cached: {len(_startup_products)} products loaded at startup.")
+
+_RELEVANT_DDL = load_relevant_ddl()
+SYSTEM_PROMPT = (
+    ORDER_SYSTEM_PROMPT.rstrip()
+    + "\n\n## Relevant DB Schema (write SELECT from user intent)\n"
+    + _RELEVANT_DDL
+    + "\n"
+)
+
+# Pack-size phrases: "20 bottles", "20 عبوة", "X 20", "× 20"
+_PACK_SIZE_RE = re.compile(
+    r"(?:(?:x|×)\s*(\d+)|(\d+)\s*(?:bottles?|bottle|عبوة|عبوات|pcs?|pieces?))",
+    re.IGNORECASE,
+)
+_BOTTLE_HINT_RE = re.compile(r"\b(?:bottles?|عبوة|عبوات)\b", re.IGNORECASE)
+_SKIP_CONFIRM_STEPS = ("address_collection", "payment", "confirmation", "done")
+_CATALOG_TOOLS = frozenset({"query_catalog"})
+
+# Product-discovery / filter signals (not dumped as prompt examples — used by guard only)
+_PRODUCT_ASK_RE = re.compile(
+    r"(?i)("
+    r"\bproducts?\b|\bcatalog\b|\bavailable\b|\border\b|\bgallons?\b|\bcartons?\b|\bbottles?\b|"
+    r"\bml\b|\bmils?\b|millilit|\bprice\b|\bcheap|\blowest\b|\bhighest\b|\bsuitable\b|"
+    r"\bfamily\b|\bpeople\b|do you have|what (?:do|can) (?:you|i)|what(?:'s| is) available|"
+    r"منتج|منتجات|جالون|كرتون|عبوة|سعر|أرخص|متوفر|عندكم|وش عند"
+    r")"
+)
+_SELECTION_HINT_RE = re.compile(
+    r"(?i)\b("
+    r"add|take|want|put|basket|this one|that one|the first|the second|"
+    r"أضف|ضيف|خذ|أبي|ابغى|هذا|هذي|الأول|الثاني"
+    r")\b"
+)
+_FILTER_HINT_RE = re.compile(
+    r"(?i)("
+    r"\bcheap|\blowest\b|\bhighest\b|\bprice\b|\banother\b|\bother\b|\bavailable\b|"
+    r"do you have|what (?:do|can) (?:you|i)|what(?:'s| is) available|"
+    r"\bsuitable\b|\bfamily\b|\bpeople\b|how many|all products|"
+    r"\bmils?\b|millilit|"
+    r"أرخص|أغلى|سعر|آخر|غيره|متوفر|عندكم|ناس|عائلة|منتجات"
+    r")"
+)
+
+
+def _extract_bottle_quantity(*texts) -> int | None:
+    """Best-effort pack size from product name / customer utterance."""
+    for text in texts:
+        if not text:
+            continue
+        m = _PACK_SIZE_RE.search(str(text))
+        if m:
+            return int(m.group(1) or m.group(2))
+    return None
+
+
+def _utterance_requested_pack(customer_input: str) -> int | None:
+    """If customer clearly asked for an N-bottle pack, return N."""
+    if not customer_input:
+        return None
+    # Prefer patterns that mention bottles/عبوة so bare "20" (qty) is ignored
+    if not _BOTTLE_HINT_RE.search(customer_input) and "×" not in customer_input and "x " not in customer_input.lower():
+        # Still allow "20 bottles" style already covered; if no bottle word, skip
+        # unless explicit X/× pack notation
+        m_x = re.search(r"(?:x|×)\s*(\d+)", customer_input, re.IGNORECASE)
+        if m_x:
+            return int(m_x.group(1))
+        return None
+    return _extract_bottle_quantity(customer_input)
+
+
+def normalize_catalog_offers(rows) -> list:
+    """Normalize query_catalog rows into offer cache entries."""
+    offers = []
+    for r in rows or []:
+        if not isinstance(r, dict):
+            continue
+        pid = r.get("product_id")
+        if pid is None:
+            continue
+        name_en = (r.get("name_en") or r.get("name") or "").strip()
+        name_ar = (r.get("name_ar") or "").strip()
+        unit_label = (
+            r.get("unit_label")
+            or r.get("unit_en")
+            or r.get("unit")
+            or ""
+        )
+        if isinstance(unit_label, dict):
+            unit_label = unit_label.get("en") or unit_label.get("ar") or ""
+        bottle_qty = r.get("bottle_quantity")
+        if bottle_qty is None:
+            bottle_qty = _extract_bottle_quantity(name_en, name_ar, str(unit_label))
+        offers.append({
+            "product_id": pid,
+            "name_en": name_en,
+            "name_ar": name_ar,
+            "unit_label": str(unit_label).strip() if unit_label else "",
+            "price_vat": r.get("price_vat"),
+            "bottle_quantity": bottle_qty,
+        })
+    return offers
+
+
+def cache_catalog_offers(state, rows) -> None:
+    offers = normalize_catalog_offers(rows)
+    if offers:
+        state["_catalog_offers"] = offers
+        state["_catalog_offers_at"] = time.time()
+
+
+def selection_binding_guard(decision, state, customer_input: str):
+    """
+    Bind basket lines to exact offer rows; reject pack-size mismatches.
+    Returns (ok, message) — message is set when guard should fire.
+    """
+    items = decision.get("items")
+    if not items:
+        return True, None
+
+    offers = state.get("_catalog_offers") or []
+    offer_by_id = {str(o["product_id"]): o for o in offers}
+    requested_pack = _utterance_requested_pack(customer_input)
+
+    bound = []
+    for item in items:
+        pid = item.get("product_id")
+        if pid is None:
+            continue
+        pid_s = str(pid)
+        offer = offer_by_id.get(pid_s)
+
+        # Prefer offer-cache bind; fall back to active-product check later in flow
+        if offer:
+            name = offer.get("name_en") or offer.get("name_ar") or item.get("name")
+            item = dict(item)
+            item["product_id"] = offer["product_id"]
+            item["name"] = name
+            if offer.get("unit_label"):
+                item["unit"] = offer["unit_label"]
+            offer_pack = offer.get("bottle_quantity")
+            if requested_pack is not None and offer_pack is not None and int(offer_pack) != int(requested_pack):
+                # Try to find a better matching offer
+                match = next(
+                    (o for o in offers if o.get("bottle_quantity") is not None
+                     and int(o["bottle_quantity"]) == int(requested_pack)),
+                    None,
+                )
+                if match:
+                    return False, (
+                        f"Customer asked for a {requested_pack}-bottle pack but items used "
+                        f"product_id={pid} ({offer_pack} bottles). Use product_id={match['product_id']} "
+                        f"({match.get('name_en') or match.get('name_ar')}) from last_offers instead."
+                    )
+                return False, (
+                    f"Customer asked for a {requested_pack}-bottle pack but product_id={pid} is "
+                    f"{offer_pack} bottles. Pick the matching row from last_offers."
+                )
+            bound.append(item)
+        else:
+            # Not in last offers — keep for hallucinated_product_guard / DB check
+            bound.append(item)
+
+    decision["items"] = bound
+
+    # Soft gate: new items this turn must not jump to address/payment/etc.
+    had_items = bool(state.get("items"))
+    items_confirmed = bool(state.get("_items_confirmed"))
+    target_step = decision.get("order_step")
+    if bound and not items_confirmed:
+        # Treat as newly set if different from state or first set
+        new_fp = json.dumps(bound, sort_keys=True, ensure_ascii=False)
+        old_fp = json.dumps(state.get("items") or [], sort_keys=True, ensure_ascii=False)
+        newly_set = (new_fp != old_fp) or not had_items
+        if newly_set and target_step in _SKIP_CONFIRM_STEPS:
+            decision["order_step"] = "product_selection"
+            return False, (
+                "Basket items were just set. Confirm the line item with the customer "
+                "(name + qty) and stay on product_selection before collecting mobile/address."
+            )
+        if newly_set:
+            decision["order_step"] = decision.get("order_step") or "product_selection"
+            if decision["order_step"] in _SKIP_CONFIRM_STEPS:
+                decision["order_step"] = "product_selection"
+
+    return True, None
+
+
+def _catalog_tool_ran(tool_trace) -> bool:
+    return any((t.get("name") in _CATALOG_TOOLS) for t in (tool_trace or []))
+
+
+def _is_selection_binding_utterance(customer_input: str, state) -> bool:
+    """True when the customer is picking from last_offers, not asking a new catalog question."""
+    text = (customer_input or "").strip()
+    if not text:
+        return False
+    if not (state.get("_catalog_offers") or []):
+        return False
+    if _FILTER_HINT_RE.search(text):
+        return False
+    if is_genuine_confirmation(text, state.get("language", "ar")):
+        return True
+    if _utterance_requested_pack(text):
+        return True
+    if _SELECTION_HINT_RE.search(text) and len(text.split()) <= 12:
+        return True
+    return False
+
+
+def needs_catalog_refresh(customer_input: str, state, tool_trace) -> bool:
+    """New product discovery/filter ask must hit the catalog this turn."""
+    if _catalog_tool_ran(tool_trace):
+        return False
+    if _is_selection_binding_utterance(customer_input, state):
+        return False
+    if not customer_input or not _PRODUCT_ASK_RE.search(customer_input):
+        return False
+    return True
+
 
 def qwen_call(messages, max_new_tokens=700):
     for m in messages:
@@ -35,7 +254,7 @@ def process_turn(customer_input, state, history):
     context_json = build_context(state)
 
     # Build full message list: system + full history + current user turn with state
-    messages = [{"role": "system", "content": ORDER_SYSTEM_PROMPT}]
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     for turn in history[:-1]:   # history already has the current user turn appended by caller — skip last
         messages.append(turn)
     # Final user message includes current state for context
@@ -159,13 +378,30 @@ def process_turn(customer_input, state, history):
             trigger_guard("payment_method_guard", "The payment_method must be exactly 'online' or 'cash_on_delivery'. Interpret the customer's intent and provide a valid value.", decision)
             continue
 
-        # 7. Product-ID Hallucination Guard
+        # 7. Selection binding + Product-ID Hallucination Guard
         if items:
+            ok_bind, bind_msg = selection_binding_guard(decision, state, customer_input)
+            items = decision.get("items") or []
+            if not ok_bind:
+                trigger_guard(
+                    "selection_binding_guard",
+                    bind_msg,
+                    decision,
+                    "product_selection",
+                )
+                continue
+
+            offers = state.get("_catalog_offers") or []
+            offer_ids = {str(o["product_id"]) for o in offers}
             pids_to_check = [item.get("product_id") for item in items if item.get("product_id")]
-            valid_pids = check_active_products(pids_to_check)
-            invalid_pids = [pid for pid in pids_to_check if pid not in valid_pids]
+            # Ids in last_offers are trusted for this turn; others must pass DB check
+            need_db = [pid for pid in pids_to_check if str(pid) not in offer_ids]
+            valid_pids = set(str(p) for p in offer_ids)
+            if need_db:
+                valid_pids |= {str(p) for p in check_active_products(need_db)}
+            invalid_pids = [pid for pid in pids_to_check if str(pid) not in valid_pids]
             if invalid_pids:
-                decision["items"] = [item for item in items if item.get("product_id") in valid_pids]
+                decision["items"] = [item for item in items if str(item.get("product_id")) in valid_pids]
                 trigger_guard("hallucinated_product_guard", f"The following product IDs do not exist in the catalog: {invalid_pids}. They have been removed from the basket. Please offer valid products.", decision)
                 continue
 
@@ -176,10 +412,31 @@ def process_turn(customer_input, state, history):
             if current_fingerprint != state.get("_total_fingerprint"):
                 trigger_guard("freshness_guard", "The basket has changed since the last time calculate_order_total was called. You MUST call calculate_order_total again before create_order.", decision, "payment")
                 continue
+
+        # 8b. Catalog freshness — new product ask must query_catalog THIS turn
+        tool_call = decision.get("tool_call")
+        tool_name = (tool_call or {}).get("name") if tool_call else None
+        if tool_name not in _CATALOG_TOOLS and needs_catalog_refresh(customer_input, state, tool_trace):
+            trigger_guard(
+                "catalog_freshness_guard",
+                "This customer message is a product discovery/filter/availability question. "
+                "The catalog is large — do not answer from memory or an older last_offers list. "
+                "Call query_catalog with a narrow SELECT from the Relevant DB Schema THIS turn "
+                "before naming any products or prices.",
+                decision,
+                "product_selection",
+            )
+            continue
         # ──────────────────────────────────────────────────────────────────────
 
         tool_call = decision.get("tool_call")
         if not tool_call:
+            # Soft-confirm: if customer affirmed and basket already set, mark confirmed
+            if (
+                decision.get("items") or state.get("items")
+            ) and is_genuine_confirmation(customer_input, state.get("language", "ar")):
+                if decision.get("order_step") in (None, "product_selection", "idle") or state.get("items"):
+                    decision["_items_confirmed"] = True
             break
 
         tool_name = tool_call.get("name")
@@ -201,9 +458,8 @@ def process_turn(customer_input, state, history):
         elif tool_name == "get_customer_orders":
             state["previous_orders"] = tool_result if isinstance(tool_result, list) else []
 
-        elif tool_name in ("get_products", "get_top_products") and isinstance(tool_result, list):
-            # Already cached at module level — just ensure state reflects it
-            pass
+        elif tool_name == "query_catalog" and isinstance(tool_result, dict) and tool_result.get("rows"):
+            cache_catalog_offers(state, tool_result["rows"])
 
         elif tool_name == "get_latest_address" and tool_result.get("found"):
             state["address"] = tool_result.get("address")
@@ -219,6 +475,7 @@ def process_turn(customer_input, state, history):
         elif tool_name == "calculate_order_total":
             state["total_amount"] = tool_result.get("total_amount", 0.0)
             state["_total_fingerprint"] = build_basket_fingerprint(decision.get("items") or state.get("items"))
+            state["_items_confirmed"] = True
 
         elif tool_name == "create_order" and tool_result.get("success"):
             state["temp_order_id"] = tool_result.get("temp_order_id")

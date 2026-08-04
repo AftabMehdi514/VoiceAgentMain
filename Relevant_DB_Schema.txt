@@ -1,0 +1,481 @@
+================================================================================
+TANIA VOICE AGENT — RELEVANT DB SCHEMA (LLM REFERENCE)
+================================================================================
+Database: tania_db (MySQL)
+Explored: ~170 tables total. This file keeps ONLY what a voice agent needs
+for product discovery, ordering, tracking, customer/address, and temp writes.
+Do NOT invent tables/columns that are not listed here.
+
+Purpose of this file
+  Appended at runtime to the system prompt so the LLM generates correct SELECTs
+  (and understands read-only production vs agent temp writes).
+  query_catalog allowlist matches the READ tables listed below (Phases 1–5).
+
+Voice use cases covered
+  1. Product showing / demand search
+  2. Placing an order (identity → address → basket → payment → confirm)
+  3. Tracking / recent order status
+  4. New or returning customer lookup
+  5. Agent staging writes via tania_temp_* (not production OMS inserts)
+
+Global conventions
+  - Many display fields are bilingual JSON TEXT: {"en":"...","ar":"..."}.
+    Search with LIKE '%keyword%' on the raw JSON text (works for EN + AR).
+  - Soft delete: prefer deleted_at IS NULL when the column exists.
+  - Money: prefer *_vat / grand_total for customer-facing amounts (SAR).
+  - Large tables (orders ~6M, order_items ~8M, customers ~1M, addresses ~0.9M):
+    ALWAYS filter by customer_id / mobile / order_id and LIMIT tightly.
+  - SELECT only for LLM-generated catalog/lookup SQL.
+    Writes to production OMS tables are OUT OF SCOPE for generated SQL.
+    Agent writes go through tools into tania_temp_* only.
+
+Relationship sketch (voice path)
+  customers.customer_id ──┬── addresses.customer_id
+                          ├── orders.customer_id
+                          └── payments.customer_id
+  orders.order_id ────────┬── order_items.order_id → products.product_id
+                          ├── deliveries.order_id → delivery_trips.delivery_trip_id
+                          └── order_statuses.order_status_id (via orders.order_status_id)
+  orders.shipping_address_id → addresses.address_id
+  products.category_id → categories.category_id
+  products_in_category (product_id, category_id)  [junction; sparse]
+
+  Agent staging (current write path):
+  tania_temp_customers.temp_customer_id
+      └── tania_temp_addresses.temp_customer_id
+      └── tania_temp_orders.temp_customer_id + temp_address_id
+
+--------------------------------------------------------------------------------
+A) PRODUCT CATALOG  (show / search / recommend)
+--------------------------------------------------------------------------------
+
+### TABLE products  [CORE — READ]
+Row scale: small (~84). Primary catalog for voice.
+USE FOR: browse, land/search by size/name, price, gallon vs carton.
+
+VOICE COLUMNS (use these)
+  product_id           INT PK           Basket id / speak id
+  product_name         TEXT             JSON {"en","ar"} — search with LIKE
+  unit                 VARCHAR(50)      JSON {"en","ar"} — Gallon / Carton / …
+  price_vat            DECIMAL(11,2)    Customer price SAR incl. VAT (prefer)
+  status               INT              Active when = 1
+  show_in_oms          INT              Visible when = 1
+  deleted_at           TIMESTAMP NULL   Soft-deleted when NOT NULL
+  bottle_quantity      INT              Bottles per pack when meaningful
+  product_sort         INT              Display / popularity-ish sort
+  category_id          INT              → categories.category_id
+  sku                  VARCHAR(100)     Only if customer quotes a SKU
+  product_description  TEXT             Rare in voice
+  volume / volume_2    mixed            Messy; prefer product_name LIKE size
+  weight               DOUBLE           Rare in voice
+  for_whatsapp         INT              Channel flag (optional filter)
+
+REQUIRED FILTERS on every voice catalog SELECT
+  status = 1
+  AND show_in_oms = 1
+  AND deleted_at IS NULL
+  AND price_vat > 0
+  LIMIT <= 8 (prefer 5)
+
+IGNORE for voice (ops/ERP noise on products)
+  price (prefer price_vat), before_discount, company_price, factor,
+  quantity, foc_qty, is_bundle, bundle_items, material,
+  product_sort_cc, presale_sort, address_other_detail, address_meta,
+  customer_group_title, companies, company_id, key_value, categories (blob),
+  erp_id, product_meta, product_images, add_on, is_coupon, is_custody,
+  show_in_load, show_in_sales, 5g, pet, my5g, mypet, product_type,
+  created_at, updated_at
+
+CATEGORY HINTS (from live data)
+  category_id=1 → Carton
+  category_id=2 → Gallon
+  Prefer unit/product_name filters; category join is optional helper.
+
+
+### TABLE categories  [SUPPORT — READ]
+Row scale: tiny (3). Carton / Gallon / Test.
+VOICE COLUMNS
+  category_id          INT PK
+  parent_id            INT NULL
+  category_name        TEXT             JSON {"en","ar"}
+  category_status      INT              Prefer = 1 (ignore test status 9)
+  category_sort        INT
+IGNORE: image, web-image, icon, category_description (usually redundant)
+
+
+### TABLE products_in_category  [SUPPORT — READ, sparse]
+Columns: product_id, category_id (composite PK)
+Note: sparse / may include junk (product_id=0). Prefer products.category_id
+unless you need multi-category membership.
+
+
+### TABLE similar_products  [FUTURE — READ]
+Columns: id, product_id, sort, created_at, updated_at
+USE LATER: “similar to what you ordered” suggestions.
+Not needed for basic browse.
+
+
+### PRICING TABLES — NOT for default voice SQL
+  channel_product_pricing, customer_product_pricing, group_product_pricing
+  Huge / B2B. Voice agent should use products.price_vat unless a dedicated
+  pricing tool is added later.
+
+
+### product_stocks / product_gallery / variants
+  Ops/media/variant explosion — IGNORE for voice catalog unless stock UX is added.
+
+--------------------------------------------------------------------------------
+B) CUSTOMER + ADDRESS  (lookup / new customer / delivery address)
+--------------------------------------------------------------------------------
+
+### TABLE customers  [CORE — READ]
+Row scale: ~1M. Lookup by mobile only; never scan whole table.
+VOICE COLUMNS
+  customer_id          INT PK
+  mobile               VARCHAR(20)      Primary lookup key (indexed)
+  name                 TEXT
+  name_ar              TEXT NULL
+  email                VARCHAR(120) NULL
+  status               INT              Prefer active customers (status=1 when used)
+  preferred_language_id INT NULL        Future: AR/EN preference
+  deleted_at           TIMESTAMP NULL
+  created_at           DATETIME
+
+TYPICAL LOOKUP
+  SELECT customer_id, name, email
+  FROM customers
+  WHERE mobile = '<normalized>'
+  LIMIT 1;
+
+IGNORE (do not select / filter casually)
+  token, otp, wallet internals, credit_limit/credit_days, ERP sync fields,
+  agent_id, channel/sub_channel unless building channel-specific pricing,
+  customer_meta blobs, scams/blocks tables (separate), ~60 other CRM columns.
+
+
+### TABLE addresses  [CORE — READ]
+Row scale: ~0.9M. Always filter by customer_id.
+VOICE COLUMNS
+  address_id           INT PK
+  customer_id          INT              → customers.customer_id
+  address              TEXT             Human-readable delivery text
+  map_info             TEXT/VARCHAR     Lat/lng JSON-ish when present
+  latitude / longitude mixed            Fallback if map_info empty
+  type                 INT              → address_types.address_type_id
+  address_title        …                Optional label
+  updated_at           DATETIME         Prefer latest
+  deleted_at           TIMESTAMP NULL
+
+TYPICAL LOOKUP
+  SELECT address_id, address, map_info, latitude, longitude
+  FROM addresses
+  WHERE customer_id = ?
+    AND deleted_at IS NULL
+  ORDER BY updated_at DESC
+  LIMIT 1;
+
+Note: production tools use shipping_address_id on orders, NOT a column
+named address_id on orders.
+
+
+### TABLE address_types  [SUPPORT — READ]
+  address_type_id 1=home, 2=mosque, 3=office (names are bilingual JSON)
+
+
+### potential_customers / customer_groups / customer_delivery_slots
+  FUTURE / ops. Not required for current voice place-order path.
+
+--------------------------------------------------------------------------------
+C) ORDERS + ITEMS + STATUS  (place history / track)
+--------------------------------------------------------------------------------
+
+### TABLE orders  [CORE — READ for track / last orders]
+Row scale: ~6M. ALWAYS filter customer_id or order_id / order_number.
+VOICE COLUMNS
+  order_id             INT PK
+  order_number         VARCHAR(30)      Customer-facing number when present
+  customer_id          INT
+  shipping_address_id  INT              → addresses.address_id
+  payment_address_id   INT              Rarely needed in voice
+  order_status_id      INT              → order_statuses.order_status_id
+  order_status         VARCHAR(40)      Denormalized label (may exist)
+  payment_method       VARCHAR(40)
+  total                DECIMAL(10,2)
+  vat                  DECIMAL(10,2)
+  grand_total          DECIMAL(10,2)    Prefer for “how much was my order”
+  delivery_date        DATE
+  delivery_time        VARCHAR(200)
+  delivery_day         VARCHAR(200)
+  delivery_slot_id     INT              → delivery_slots (future)
+  actual_delivery_date DATE
+  driver_id            INT              Ops; avoid speaking unless asked
+  source_id            VARCHAR/INT      → sources (web/mobile/call center/…)
+  cancel_reason_id     INT
+  cancel_reason        TEXT
+  customer_serv_rating / delivery_time_rating / prod_quality_rating  FUTURE
+  created_at           DATETIME
+  deleted_at           TIMESTAMP NULL
+  status_delivered / status_cancelled / status_driver  DATETIME milestones
+
+TRACKING PATTERN (latest orders for a customer)
+  SELECT o.order_id, o.order_number, o.grand_total, o.created_at,
+         o.delivery_date, o.order_status_id, os.order_status_title, os.`key`
+  FROM orders o
+  JOIN order_statuses os ON os.order_status_id = o.order_status_id
+  WHERE o.customer_id = ?
+    AND o.deleted_at IS NULL
+  ORDER BY o.created_at DESC
+  LIMIT 5;
+
+IGNORE on orders for voice SQL
+  SAP/ERP ids, collection_type_*, qitaf/donation, mage_*, e_signature,
+  invoice_link internals, is_preseller_order / is_dd_order ops flags,
+  order_meta blobs, assigned_trip internals, balances unless payment UX.
+
+
+### TABLE order_items  [CORE — READ]
+Row scale: ~8M. Join via order_id; filter deleted_at IS NULL.
+VOICE COLUMNS
+  order_item_id        INT PK
+  order_id             INT
+  product_id           INT              → products.product_id
+  quantity             INT
+  unit_price           DECIMAL
+  price                DECIMAL          Line total (legacy)
+  unit_price_vat       DOUBLE           Prefer when present
+  total_vat            DOUBLE
+  deleted_at           TIMESTAMP NULL
+IGNORE: foc_*, custody/deposit/return qty, ERP, meta blobs
+
+
+### TABLE order_statuses  [CORE — READ]
+Known keys (live):
+  1 PAYMENT PENDING | 2 CONFIRMED | 3 SHIPPED ("On the way")
+  4 DELIVERED | 5 PLACED | 6 CANCELED | 7 ON HOLD
+  8 ON HOLD BY SALES | 9 PAYMENT REJECTED | 10 ON HOLD REFUND
+  13 ASSIGNED | 14 READY_FOR_PICK_UP | 15 UPDATED | 17 CUSTODY_UPDATED
+VOICE COLUMNS
+  order_status_id      INT PK
+  order_status_title   TEXT             JSON {"en","ar"} — speak this
+  `key`                VARCHAR          Machine key above
+  sequence             INT NULL
+  status               INT              Row active flag
+  deleted_at           TIMESTAMP NULL
+IGNORE: email/sms/push template ids, companies, meta
+
+
+### TABLE payments  [SUPPORT — READ, future “did my payment go through?”]
+VOICE COLUMNS
+  payment_id, customer_id, order_id, amount, status, option_key,
+  payment_method, payment_date, transaction_status, deleted_at
+Do not dump merchant/transaction secrets to the customer.
+
+
+### TABLE sources  [SUPPORT — READ]
+source_title examples: web, mobile, call center, IVR, whatsapp, ios, android…
+Useful if explaining where an order was placed. Not needed for catalog.
+
+
+### TABLE channels  [SUPPORT — mostly IGNORE for HD voice]
+Home Delivery channel_id=1 is the voice/home path conceptually.
+B2B channels (Horeca, Wholesale, …) are out of scope unless asked.
+
+
+### TABLE cancel_reasons  [FUTURE — READ]
+Mobile-visible reasons for cancel UX. Columns: cancel_reason_id, reason (JSON),
+reason_code, status, mobile_visible.
+
+--------------------------------------------------------------------------------
+D) DELIVERY / TRACKING  (where is my order?)
+--------------------------------------------------------------------------------
+
+### TABLE deliveries  [CORE — READ for track]
+Row scale: ~2.2M. Join orders.order_id; respect deleted_at.
+VOICE COLUMNS
+  delivery_id          INT PK
+  order_id             INT
+  delivery_trip_id     INT              → delivery_trips
+  delivery_date        DATETIME
+  delivery_time        DATETIME         Actual/recorded time when set
+  start_time_planned / end_time_planned  Planned window
+  actual_arrival_time  DATETIME
+  status               INT              Internal; combine with order_statuses
+  deleted_at           DATETIME NULL
+IGNORE: distance_from_last_point, sales_per_order, load_taken, ERP
+
+
+### TABLE delivery_trips  [SUPPORT — READ]
+VOICE COLUMNS
+  delivery_trip_id, trip_status_id, trip_date,
+  trip_startime, trip_endtime, status, deleted_at
+Trip status keys: ASSIGNED, STARTED, PARTIALLY_CLOSED, CLOSED, WAITING_FOR_APPROVAL
+Usually enough to say “your order is on a delivery trip / on the way”
+via order_statuses rather than trip internals.
+
+
+### TABLE trip_statuses  [SUPPORT — READ]
+  trip_status_id, trip_status_title (JSON), `key`, sequence
+
+
+### TABLE delivery_slots  [FUTURE — READ]
+For “morning/evening slot” preference UX later.
+
+
+### tracking_data / tracking_data_1 / tracker_data / vehicles / routes / drivers
+  Ops GPS/fleet — IGNORE for voice unless a dedicated live-map feature is built.
+  Prefer order_statuses + deliveries for customer-facing tracking.
+
+--------------------------------------------------------------------------------
+E) AGENT TEMP TABLES  (current WRITE path via tools — not production OMS)
+--------------------------------------------------------------------------------
+These are the staging tables the voice agent already uses for new customers
+and confirmed voice orders. Prefer tools (save_customer_and_address,
+create_order, save_rating) over ad-hoc LLM writes.
+
+### TABLE tania_temp_customers  [CORE — WRITE via tool]
+  temp_customer_id     INT PK AI
+  mobile               VARCHAR(20) UNIQUE
+  name                 VARCHAR(255) NULL
+  email                VARCHAR(255) NULL
+  created_at           DATETIME
+
+
+### TABLE tania_temp_addresses  [CORE — WRITE via tool]
+  temp_address_id      INT PK AI
+  temp_customer_id     INT FK → tania_temp_customers
+  address              TEXT
+  map_info             VARCHAR(500)     Default lat/lng JSON string
+  created_at           DATETIME
+
+
+### TABLE tania_temp_orders  [CORE — WRITE via tool]
+  temp_order_id        INT PK AI
+  temp_customer_id     INT
+  temp_address_id      INT
+  items                JSON             e.g. [{"product_id":20017,"quantity":1}]
+  total_amount         DECIMAL(10,2)
+  payment_method       ENUM('online','cash_on_delivery')
+  status               ENUM('pending','confirmed','cancelled') DEFAULT 'confirmed'
+  rating               TINYINT NULL
+  created_at           DATETIME
+
+Track temp order:
+  SELECT temp_order_id, status, total_amount, payment_method, items, rating, created_at
+  FROM tania_temp_orders
+  WHERE temp_customer_id = ?
+  ORDER BY created_at DESC
+  LIMIT 5;
+
+--------------------------------------------------------------------------------
+F) FUTURE VOICE EXPANSIONS (listed, not required now)
+--------------------------------------------------------------------------------
+  promocodes / promotions / coupons     — discounts & coupon books
+  wallet_transactions / water_drops     — wallet/loyalty
+  tickets / ticket_categories           — complaint / support tickets
+  refund_reasons / return_reasons       — returns language
+  recurring_*                           — subscriptions
+  notifications                         — push/SMS templates
+
+Include these in generated SQL only after a product decision + allowlist update.
+
+--------------------------------------------------------------------------------
+G) IRRELEVANT FAMILIES (do not use for voice SQL)
+--------------------------------------------------------------------------------
+  ERP/jobs/bulk, Genesys, STC/Tamara/Tabby webhook logs, API keys,
+  FM geofences, vehicle transfer/stock ops, hand_over_*, deposit_cash_*,
+  graph_request_response, migrations, sessions/users/roles (admin),
+  callcenter_reports, al_rajhi_tokens, invalid_payment_requests,
+  product_log / product_customer_log, store_constraints, territories
+  (unless territory-based delivery rules become a voice feature).
+
+When unsure: do NOT guess a table. Prefer an existing tool or ask to clarify.
+
+--------------------------------------------------------------------------------
+H) EXAMPLE QUERY INTENTS (illustrative — write fresh SQL each time)
+--------------------------------------------------------------------------------
+
+-- 1) Browse / “what can I order?”
+SELECT product_id, product_name, unit, price_vat
+FROM products
+WHERE status = 1 AND show_in_oms = 1 AND deleted_at IS NULL AND price_vat > 0
+ORDER BY product_sort
+LIMIT 5;
+
+-- 2) Land on size (e.g. 200ml)
+SELECT product_id, product_name, unit, price_vat, bottle_quantity
+FROM products
+WHERE status = 1 AND show_in_oms = 1 AND deleted_at IS NULL AND price_vat > 0
+  AND product_name LIKE '%200%'
+ORDER BY product_sort
+LIMIT 5;
+
+-- 3) Home / family → gallons
+SELECT product_id, product_name, unit, price_vat
+FROM products
+WHERE status = 1 AND show_in_oms = 1 AND deleted_at IS NULL AND price_vat > 0
+  AND (unit LIKE '%Gallon%' OR product_name LIKE '%Gallon%' OR category_id = 2)
+ORDER BY product_sort
+LIMIT 5;
+
+-- 4) Trip / small bottles
+SELECT product_id, product_name, unit, price_vat, bottle_quantity
+FROM products
+WHERE status = 1 AND show_in_oms = 1 AND deleted_at IS NULL AND price_vat > 0
+  AND unit LIKE '%Carton%'
+  AND (product_name LIKE '%200%' OR product_name LIKE '%330%')
+ORDER BY product_sort
+LIMIT 5;
+
+-- 5) Customer by mobile
+SELECT customer_id, name, email
+FROM customers
+WHERE mobile = '05XXXXXXXX'
+LIMIT 1;
+
+-- 6) Latest address
+SELECT address_id, address, map_info, latitude, longitude
+FROM addresses
+WHERE customer_id = ? AND deleted_at IS NULL
+ORDER BY updated_at DESC
+LIMIT 1;
+
+-- 7) Track latest production orders + status title
+SELECT o.order_id, o.order_number, o.grand_total, o.created_at, o.delivery_date,
+       os.order_status_title, os.`key` AS status_key
+FROM orders o
+JOIN order_statuses os ON os.order_status_id = o.order_status_id
+WHERE o.customer_id = ? AND o.deleted_at IS NULL
+ORDER BY o.created_at DESC
+LIMIT 5;
+
+-- 8) Lines on an order
+SELECT oi.product_id, oi.quantity, p.product_name, oi.unit_price_vat, oi.price
+FROM order_items oi
+JOIN products p ON p.product_id = oi.product_id
+WHERE oi.order_id = ? AND oi.deleted_at IS NULL
+LIMIT 20;
+
+-- 9) Delivery row for an order
+SELECT d.delivery_id, d.delivery_date, d.delivery_time, d.actual_arrival_time,
+       d.status, d.delivery_trip_id
+FROM deliveries d
+WHERE d.order_id = ? AND d.deleted_at IS NULL
+ORDER BY d.delivery_id DESC
+LIMIT 3;
+
+--------------------------------------------------------------------------------
+I) ALLOWLIST POLICY (query_catalog SELECT — ENABLED)
+--------------------------------------------------------------------------------
+Phases 1–5 are ENABLED for SELECT via query_catalog (sandbox allowlist):
+  Phase 1: products
+  Phase 2: categories, products_in_category, similar_products
+  Phase 3: customers, addresses, address_types, order_statuses
+  Phase 4: orders, order_items, deliveries, delivery_trips, trip_statuses,
+           payments, sources, cancel_reasons, delivery_slots
+  Phase 5: tania_temp_customers, tania_temp_addresses, tania_temp_orders
+Never allow: DELETE/UPDATE/INSERT/DDL; never allow ERP/log/fleet tables.
+Huge tables MUST use tight WHERE (mobile / customer_id / order_id) + LIMIT.
+
+================================================================================
+END — Relevant DB Schema for Tania Voice Agent
+================================================================================

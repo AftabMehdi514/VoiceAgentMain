@@ -17,7 +17,7 @@ from monitor.store import (
     get_live_state,
     get_metrics,
     set_prompt_saved_at,
-    load_jsonl_into_memory,
+    clear_store,
 )
 
 app = FastAPI(title="Tania Ops Console")
@@ -33,14 +33,72 @@ app.add_middleware(
 connected_clients: set = set()
 UI_DIR = os.path.join(os.path.dirname(__file__), "ui")
 PROMPT_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "core", "prompts.py"))
+DDL_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "Relevant_DB_Schema.txt"))
 
 app.mount("/static", StaticFiles(directory=UI_DIR), name="static")
 
-load_jsonl_into_memory()
+# Fresh monitor memory on process start — no prior clutter.
+clear_store(wipe_jsonl=True)
+
+
+def _read_ddl() -> str:
+    try:
+        with open(DDL_FILE, "r", encoding="utf-8") as f:
+            return f.read()
+    except Exception as e:
+        return f"(Relevant_DB_Schema.txt unavailable: {e})"
+
+
+def _extract_prompt_body(content: str) -> str:
+    if 'ORDER_SYSTEM_PROMPT = """' in content:
+        try:
+            return content.split('ORDER_SYSTEM_PROMPT = """', 1)[1].rsplit('"""', 1)[0].strip()
+        except Exception:
+            pass
+    return content
+
+
+def _compact_turn_for_ws(turn: dict | None) -> dict | None:
+    """Shrink live WS payloads so browsers stay responsive (full turn via REST)."""
+    if not turn:
+        return None
+    slim = dict(turn)
+    # Drop bulky LLM message bodies from live push; UI refetches on select
+    slim_calls = []
+    for call in turn.get("llm_calls") or []:
+        c = dict(call)
+        msgs = c.get("messages")
+        if msgs:
+            c["messages"] = [
+                {
+                    "role": m.get("role"),
+                    "content": (m.get("content") or "")[:240] + (
+                        "…" if len(m.get("content") or "") > 240 else ""
+                    ),
+                }
+                for m in msgs
+            ]
+            c["messages_truncated"] = True
+        slim_calls.append(c)
+    slim["llm_calls"] = slim_calls
+    slim_steps = []
+    for step in turn.get("steps") or []:
+        s = dict(step)
+        data = s.get("data")
+        if isinstance(data, dict) and "messages" in data:
+            data = dict(data)
+            data.pop("messages", None)
+            s["data"] = data
+        slim_steps.append(s)
+    slim["steps"] = slim_steps
+    return slim
 
 
 async def broadcast(message: dict):
     dead = []
+    if message.get("type") == "telemetry" and message.get("turn"):
+        message = dict(message)
+        message["turn"] = _compact_turn_for_ws(message["turn"])
     for client in list(connected_clients):
         try:
             await client.send_json(message)
@@ -52,8 +110,17 @@ async def broadcast(message: dict):
 
 @app.get("/")
 async def get_index():
+    # Browser reload starts empty; live turns repopulate via telemetry.
+    clear_store(wipe_jsonl=True)
     with open(os.path.join(UI_DIR, "index.html"), "r", encoding="utf-8") as f:
         return HTMLResponse(f.read())
+
+
+@app.post("/api/clear")
+async def api_clear():
+    clear_store(wipe_jsonl=True)
+    await broadcast({"type": "bootstrap", "sessions": [], "metrics": get_metrics(), "live_state": {}})
+    return {"status": "cleared"}
 
 
 @app.get("/api/health")
@@ -125,10 +192,36 @@ async def get_prompt():
     try:
         with open(PROMPT_FILE, "r", encoding="utf-8") as f:
             content = f.read()
+        ddl = _read_ddl()
+        body = _extract_prompt_body(content)
+        full_to_llm = (
+            body.rstrip()
+            + "\n\n## Product DDL (for query_catalog SQL)\n"
+            + ddl
+            + "\n"
+        )
         m = get_metrics()
-        return {"content": content, "saved_at": m.get("prompt_saved_at")}
+        return {
+            "content": content,
+            "prompt_body": body,
+            "ddl": ddl,
+            "full_system_prompt": full_to_llm,
+            "ddl_path": "Relevant_DB_Schema.txt",
+            "note": "At runtime, tania_agent appends Relevant_DB_Schema.txt onto ORDER_SYSTEM_PROMPT before every LLM call.",
+            "saved_at": m.get("prompt_saved_at"),
+        }
     except Exception as e:
         return {"error": str(e)}
+
+
+@app.get("/api/ddl")
+async def get_ddl():
+    ddl = _read_ddl()
+    return {
+        "path": "Relevant_DB_Schema.txt",
+        "content": ddl,
+        "note": "Appended to the system message as '## Relevant DB Schema (write SELECT from user intent)' on every LLM call.",
+    }
 
 
 @app.post("/api/prompt")

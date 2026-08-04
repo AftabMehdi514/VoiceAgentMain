@@ -14,6 +14,11 @@ const state = {
     filterMode: "all",
     promptMode: "view",
     followLive: true,
+    autoFollowScroll: true,
+    showOlderSessions: false,
+    ddlText: "",
+    promptNote: "",
+    _scrollGuardBound: false,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -56,6 +61,19 @@ function handleMessage(msg) {
     if (msg.type === "bootstrap") {
         state.sessions = msg.sessions || [];
         state.metrics = msg.metrics || null;
+        if (!state.sessions.length) {
+            state.turnsBySession = {};
+            state.selectedSessionId = null;
+            state.selectedTurnId = null;
+            state.selectedTurn = null;
+            $("waterfall").innerHTML = '<div class="empty">No turn selected</div>';
+            $("waterfall-title").textContent = "Turn Flow";
+            $("waterfall-sub").textContent = "Select a turn on the left";
+            $("state-content").innerHTML = '<div class="empty">Select a turn to see before / after state</div>';
+            $("context-usage").hidden = true;
+            $("btn-export-turn").disabled = true;
+            $("btn-export-session").disabled = true;
+        }
         renderSessions();
         renderMetrics();
         updateKpis();
@@ -80,7 +98,6 @@ function handleMessage(msg) {
             $("waterfall-sub").textContent = liveSubtitle(turn);
             renderWaterfall(turn);
             renderTurnState(turn);
-            renderContextBar(turn);
         }
         refreshMetricsSoon();
     } else if (msg.type === "telemetry" && msg.event && msg.event.payload) {
@@ -94,7 +111,10 @@ function liveSubtitle(turn) {
 }
 
 function focusTurn(turn, stopFollow) {
-    if (stopFollow) state.followLive = false;
+    if (stopFollow) {
+        state.followLive = false;
+        state.autoFollowScroll = false;
+    }
     state.selectedTurnId = turn.turn_id;
     state.selectedSessionId = turn.session_id;
     state.selectedTurn = turn;
@@ -104,9 +124,29 @@ function focusTurn(turn, stopFollow) {
     $("waterfall-sub").textContent = liveSubtitle(turn);
     renderWaterfall(turn);
     renderTurnState(turn);
-    renderContextBar(turn);
     renderSessions();
     switchTab("state");
+}
+
+async function focusLatestTurn(preferLive) {
+    const sessions = state.sessions || [];
+    if (!sessions.length) return;
+    const sid = sessions[0].session_id;
+    await ensureSessionTurns(sid, true);
+    const turns = state.turnsBySession[sid] || [];
+    if (!turns.length) return;
+    let turn = turns[0];
+    if (preferLive) {
+        const live = turns.find((t) => t.status === "running" || t.live_step);
+        if (live) turn = live;
+    }
+    try {
+        const res = await fetch(`/api/turns/${encodeURIComponent(turn.turn_id)}`);
+        if (res.ok) turn = await res.json();
+    } catch (_) {}
+    upsertTurn(turn);
+    focusTurn(turn, false);
+    state.followLive = true;
 }
 
 function upsertTurn(turn) {
@@ -131,8 +171,22 @@ function upsertTurn(turn) {
     if (!state.turnsBySession[sid]) state.turnsBySession[sid] = [];
     const list = state.turnsBySession[sid];
     const idx = list.findIndex((t) => t.turn_id === turn.turn_id);
-    if (idx >= 0) list[idx] = turn;
-    else list.unshift(turn);
+    if (idx >= 0) {
+        const prev = list[idx];
+        // Keep full LLM message bodies if a live WS push sent truncated copies
+        if (turn.llm_calls && prev.llm_calls) {
+            turn.llm_calls = turn.llm_calls.map((c, i) => {
+                const p = prev.llm_calls[i];
+                if (c && c.messages_truncated && p && p.messages && !p.messages_truncated) {
+                    return { ...c, messages: p.messages, messages_truncated: false };
+                }
+                return c;
+            });
+        }
+        list[idx] = { ...prev, ...turn, llm_calls: turn.llm_calls || prev.llm_calls };
+    } else {
+        list.unshift(turn);
+    }
 
     if (!session.turn_ids.includes(turn.turn_id)) {
         session.turn_ids.push(turn.turn_id);
@@ -163,63 +217,89 @@ function renderSessions() {
         root.innerHTML = '<div class="empty">Waiting for agent activity…</div>';
         return;
     }
+
+    const sorted = [...state.sessions].sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0));
+    const active = sorted[0];
+    const older = sorted.slice(1);
+
     root.innerHTML = "";
-    state.sessions.forEach((session) => {
-        const open = state.selectedSessionId === session.session_id;
-        const card = document.createElement("div");
-        card.className = "session-card" + (open ? " open" : "");
-        card.innerHTML = `
-            <div class="session-head">
-                <div class="session-id">${esc(shortId(session.session_id))}…</div>
-                <div class="session-preview">${esc(session.preview || "Empty session")}</div>
-                <div class="session-meta">
-                    <span>${esc(String(session.turn_count || 0))} turns</span>
-                    <span>${esc(session.last_order_step || "idle")}</span>
-                </div>
-            </div>
-            <div class="turn-list"></div>
-        `;
-        card.querySelector(".session-head").onclick = async () => {
-            if (open) { state.selectedSessionId = null; renderSessions(); return; }
-            state.selectedSessionId = session.session_id;
-            $("btn-export-session").disabled = false;
-            await ensureSessionTurns(session.session_id);
-            renderSessions();
-        };
-        const listEl = card.querySelector(".turn-list");
-        const visible = (state.turnsBySession[session.session_id] || []).filter(turnMatchesFilter);
-        if (!visible.length) {
-            listEl.innerHTML = '<div class="empty sm">No matching turns</div>';
-        } else {
-            visible.forEach((turn) => {
-                const item = document.createElement("div");
-                const live = turn.status === "running" || !!turn.live_step;
-                item.className = "turn-item"
-                    + (state.selectedTurnId === turn.turn_id ? " active" : "")
-                    + (live ? " live-turn" : "");
-                const statusBadge = live
-                    ? '<span class="badge live">live</span>'
-                    : turn.status === "error"
-                        ? '<span class="badge err">err</span>'
-                        : '<span class="badge ok">done</span>';
-                item.innerHTML = `
-                    <div class="turn-top">
-                        <span class="turn-time">${esc(fmtTime(turn.created_at))}</span>
-                        <span class="badge ms">${esc(fmtMs(turn.duration_ms))}</span>
-                    </div>
-                    <div class="turn-preview">${esc(turn.customer_input || "…")}</div>
-                    <div class="turn-flags">${statusBadge}</div>
-                `;
-                item.onclick = (e) => { e.stopPropagation(); selectTurn(turn); };
-                listEl.appendChild(item);
-            });
-        }
-        root.appendChild(card);
-    });
+    root.appendChild(buildSessionCard(active, true));
+
+    if (older.length) {
+        const wrap = document.createElement("details");
+        wrap.className = "older-sessions";
+        wrap.open = !!state.showOlderSessions;
+        wrap.innerHTML = `<summary>${older.length} earlier session${older.length === 1 ? "" : "s"}</summary>`;
+        wrap.addEventListener("toggle", () => { state.showOlderSessions = wrap.open; });
+        older.forEach((session) => wrap.appendChild(buildSessionCard(session, false)));
+        root.appendChild(wrap);
+    }
 }
 
-async function ensureSessionTurns(sessionId) {
-    if (state.turnsBySession[sessionId] && state.turnsBySession[sessionId].length) return;
+function buildSessionCard(session, preferOpen) {
+    const open = state.selectedSessionId
+        ? state.selectedSessionId === session.session_id
+        : preferOpen;
+    const card = document.createElement("div");
+    card.className = "session-card" + (open ? " open" : "");
+    card.innerHTML = `
+        <div class="session-head">
+            <div class="session-id">${esc(shortId(session.session_id))}</div>
+            <div class="session-preview">${esc(session.preview || "Empty session")}</div>
+            <div class="session-meta">
+                <span>${esc(String(session.turn_count || 0))} turns</span>
+                <span class="step-pill">${esc(session.last_order_step || "idle")}</span>
+            </div>
+        </div>
+        <div class="turn-list"></div>
+    `;
+    card.querySelector(".session-head").onclick = async () => {
+        if (open && state.selectedSessionId === session.session_id) {
+            state.selectedSessionId = null;
+            renderSessions();
+            return;
+        }
+        state.selectedSessionId = session.session_id;
+        $("btn-export-session").disabled = false;
+        await ensureSessionTurns(session.session_id);
+        renderSessions();
+    };
+    const listEl = card.querySelector(".turn-list");
+    const visible = (state.turnsBySession[session.session_id] || []).filter(turnMatchesFilter);
+    if (!open) {
+        listEl.innerHTML = "";
+    } else if (!visible.length) {
+        listEl.innerHTML = '<div class="empty sm">No matching turns</div>';
+    } else {
+        // Newest first (list is already newest-first from upsert)
+        visible.forEach((turn) => {
+            const item = document.createElement("div");
+            const live = turn.status === "running" || !!turn.live_step;
+            item.className = "turn-item"
+                + (state.selectedTurnId === turn.turn_id ? " active" : "")
+                + (live ? " live-turn" : "");
+            const statusBadge = live
+                ? '<span class="badge live">live</span>'
+                : turn.status === "error"
+                    ? '<span class="badge err">err</span>'
+                    : '<span class="badge ok">done</span>';
+            item.innerHTML = `
+                <div class="turn-top">
+                    <span class="turn-time">${esc(fmtTime(turn.created_at))}</span>
+                    <span class="badge ms">${esc(fmtMs(turn.duration_ms))}</span>
+                </div>
+                <div class="turn-preview">${esc(turn.customer_input || "…")}</div>
+                <div class="turn-flags">${statusBadge}</div>
+            `;
+            item.onclick = (e) => { e.stopPropagation(); selectTurn(turn); };
+            listEl.appendChild(item);
+        });
+    }
+    return card;
+}
+
+async function ensureSessionTurns(sessionId, force = false) {
+    if (!force && state.turnsBySession[sessionId] && state.turnsBySession[sessionId].length) return;
     try {
         const data = await (await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/turns`)).json();
         state.turnsBySession[sessionId] = data.turns || [];
@@ -268,30 +348,6 @@ function humanValue(v) {
     return String(v);
 }
 
-function estimateTokensFromMessages(messages) {
-    if (!messages || !messages.length) return 0;
-    let chars = 0;
-    messages.forEach((m) => { chars += (m.content || "").length + 8; });
-    return Math.max(1, Math.round(chars / 4));
-}
-
-function renderContextBar(turn) {
-    const wrap = $("context-bar-wrap");
-    const call = (turn.llm_calls || []).find((c) => c.messages && c.messages.length)
-        || (turn.llm_calls || [])[0];
-    if (!call || !call.messages) {
-        wrap.hidden = true;
-        return;
-    }
-    const used = estimateTokensFromMessages(call.messages);
-    const pct = Math.min(100, Math.round((used / CONTEXT_WINDOW) * 100));
-    wrap.hidden = false;
-    $("context-bar-pct").textContent = `${pct}%`;
-    const fill = $("context-bar-fill");
-    fill.style.width = `${pct}%`;
-    fill.className = "context-bar-fill" + (pct > 85 ? " hot" : pct > 60 ? " warm" : "");
-}
-
 function fieldRows(pairs) {
     return `<div class="kv">${pairs.filter(([, v]) => v !== undefined && v !== null && v !== "")
         .map(([k, v]) => `<div class="kv-row"><span class="k">${esc(k)}</span><span class="v">${esc(humanValue(v))}</span></div>`)
@@ -327,6 +383,92 @@ function renderItems(items) {
     </tbody></table>`;
 }
 
+function pickName(row) {
+    if (!row || typeof row !== "object") return "—";
+    if (row.name_en || row.name_ar) return row.name_en || row.name_ar;
+    if (row.name) return row.name;
+    const raw = row.product_name;
+    if (typeof raw === "string" && raw.trim().startsWith("{")) {
+        try {
+            const d = JSON.parse(raw);
+            return d.en || d.ar || raw;
+        } catch (_) {}
+    }
+    return raw || "—";
+}
+
+function pickUnit(row) {
+    if (!row || typeof row !== "object") return "—";
+    if (row.unit_label || row.unit_en || row.unit_ar) return row.unit_label || row.unit_en || row.unit_ar;
+    const raw = row.unit;
+    if (typeof raw === "string" && raw.trim().startsWith("{")) {
+        try {
+            const d = JSON.parse(raw);
+            return d.en || d.ar || raw;
+        } catch (_) {}
+    }
+    return raw || "—";
+}
+
+function pickNameAr(row) {
+    if (!row || typeof row !== "object") return "";
+    if (row.name_ar) return row.name_ar;
+    const raw = row.product_name;
+    if (typeof raw === "string" && raw.trim().startsWith("{")) {
+        try { return JSON.parse(raw).ar || ""; } catch (_) {}
+    }
+    return "";
+}
+
+/** Clean table for catalog / product row arrays */
+function renderProductRows(rows) {
+    if (!Array.isArray(rows) || !rows.length) return "<em class='muted'>No rows</em>";
+    const looksLikeProducts = rows.some((r) => r && (r.product_id != null || r.name_en || r.product_name || r.price_vat != null));
+    if (!looksLikeProducts) {
+        const keys = Array.from(rows.reduce((s, row) => {
+            Object.keys(row || {}).forEach((k) => s.add(k));
+            return s;
+        }, new Set()));
+        return `<table class="tiny-table product-rows"><thead><tr>${keys.map((k) => `<th>${esc(k)}</th>`).join("")}</tr></thead><tbody>
+            ${rows.map((row) => `<tr>${keys.map((k) => `<td>${esc(humanValue(row[k]))}</td>`).join("")}</tr>`).join("")}
+        </tbody></table>`;
+    }
+    return `<table class="tiny-table product-rows">
+        <thead><tr><th>ID</th><th>Name (EN)</th><th>Name (AR)</th><th>Unit</th><th>Price</th></tr></thead>
+        <tbody>
+            ${rows.map((r) => `<tr>
+                <td class="mono">${esc(r.product_id ?? "—")}</td>
+                <td>${esc(pickName(r))}</td>
+                <td dir="auto">${esc(pickNameAr(r) || "—")}</td>
+                <td>${esc(pickUnit(r))}</td>
+                <td class="mono">${esc(r.price_vat != null ? r.price_vat : (r.price ?? "—"))}</td>
+            </tr>`).join("")}
+        </tbody>
+    </table>`;
+}
+
+function renderCatalogResult(obj) {
+    let html = "";
+    if (obj.sql) {
+        html += `<div class="mini-title">SQL</div><pre class="sql-block">${esc(obj.sql)}</pre>`;
+    }
+    if (obj.count != null) {
+        html += `<div class="row-count">${esc(obj.count)} product${obj.count === 1 ? "" : "s"}</div>`;
+    }
+    if (obj.error) {
+        html += `<div class="quote err-quote">${esc(obj.error)}${obj.hint ? " — " + esc(obj.hint) : ""}</div>`;
+    }
+    if (Array.isArray(obj.rows)) {
+        html += `<div class="mini-title">Products</div>${renderProductRows(obj.rows)}`;
+    }
+    return html || "<em class='muted'>—</em>";
+}
+
+function isCatalogPayload(obj) {
+    return obj && typeof obj === "object" && !Array.isArray(obj)
+        && (Array.isArray(obj.rows) || (obj.sql && (obj.count != null || obj.error)));
+}
+
 function splitContent(content) {
     const text = String(content || "");
     const stateMatch = text.match(/\[Current state\]\s*([\s\S]*?)\s*\[Customer message\]\s*([\s\S]*)$/i);
@@ -342,82 +484,259 @@ function renderObjectCompact(obj) {
     if (obj == null) return "<em class='muted'>—</em>";
     if (Array.isArray(obj)) {
         if (!obj.length) return "<em class='muted'>—</em>";
-        if (typeof obj[0] === "object") return renderItems(obj.map((r) => r));
+        if (typeof obj[0] === "object") {
+            if (obj[0].product_id != null || obj[0].price_vat != null || obj[0].name_en) {
+                return renderProductRows(obj);
+            }
+            return renderItems(obj);
+        }
         return `<div class="quote">${esc(obj.join(", "))}</div>`;
     }
-    if (typeof obj === "object") return fieldRows(Object.entries(obj));
+    if (typeof obj === "object") {
+        if (isCatalogPayload(obj)) return renderCatalogResult(obj);
+        // Avoid dumping nested arrays as one long line
+        const simple = [];
+        let extra = "";
+        Object.entries(obj).forEach(([k, v]) => {
+            if (Array.isArray(v) && v.length && typeof v[0] === "object") {
+                extra += `<div class="mini-title">${esc(k)}</div>${renderProductRows(v)}`;
+            } else {
+                simple.push([k, v]);
+            }
+        });
+        return (simple.length ? fieldRows(simple) : "") + extra;
+    }
     return `<div class="quote">${esc(String(obj))}</div>`;
 }
 
-/** What goes into the LLM this turn — no system prompt dump, no state dump */
-function renderLlmInputMessages(messages) {
+/** Split system message into rules vs Relevant DB Schema (as actually sent to LLM). */
+function splitSystemPrompt(content) {
+    const text = String(content || "");
+    const marker = "## Relevant DB Schema";
+    const idx = text.indexOf(marker);
+    if (idx < 0) {
+        // backward compat with older agent builds
+        const legacy = "## Product DDL";
+        const li = text.indexOf(legacy);
+        if (li < 0) return { rules: text, ddl: "" };
+        return { rules: text.slice(0, li).trim(), ddl: text.slice(li).trim() };
+    }
+    return { rules: text.slice(0, idx).trim(), ddl: text.slice(idx).trim() };
+}
+
+/** Estimate tokens (~chars/4) and bucket LLM messages for context usage. */
+function estimateTokens(text) {
+    return Math.max(0, Math.round(String(text || "").length / 4));
+}
+
+function analyzeContextUsage(turn) {
+    const call = (turn.llm_calls || []).find((c) => c.messages && c.messages.length)
+        || (turn.llm_calls || [])[0];
+    const messages = (call && call.messages) || [];
+    const buckets = {
+        system: 0,
+        ddl: 0,
+        history: 0,
+        this_turn: 0,
+        tools: 0,
+        guards: 0,
+    };
+    messages.forEach((m) => {
+        if (!m) return;
+        const content = m.content || "";
+        if (m.role === "system") {
+            const split = splitSystemPrompt(content);
+            buckets.system += estimateTokens(split.rules);
+            buckets.ddl += estimateTokens(split.ddl);
+            return;
+        }
+        const parts = splitContent(content);
+        if (parts.customerText !== undefined) {
+            buckets.this_turn += estimateTokens(content);
+        } else if (parts.toolName) {
+            buckets.tools += estimateTokens(content);
+        } else if (parts.guardText) {
+            buckets.guards += estimateTokens(content);
+        } else {
+            buckets.history += estimateTokens(content);
+        }
+    });
+    const used = Object.values(buckets).reduce((a, b) => a + b, 0);
+    return { used, buckets, truncated: !!(call && call.messages_truncated) };
+}
+
+function fmtTok(n) {
+    if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K`;
+    return String(n);
+}
+
+function renderContextUsage(turn) {
+    const root = $("context-usage");
+    if (!root) return;
+    if (!turn) {
+        root.hidden = true;
+        root.innerHTML = "";
+        return;
+    }
+    const { used, buckets, truncated } = analyzeContextUsage(turn);
+    if (!used) {
+        root.hidden = true;
+        root.innerHTML = "";
+        return;
+    }
+    const pct = Math.min(100, Math.round((used / CONTEXT_WINDOW) * 100));
+    const cats = [
+        { key: "system", label: "System rules", color: "#94a3b8" },
+        { key: "ddl", label: "Schema", color: "#8b5cf6" },
+        { key: "history", label: "Prior history", color: "#22c55e" },
+        { key: "this_turn", label: "This turn", color: "#3b82f6" },
+        { key: "tools", label: "Tool results", color: "#f59e0b" },
+        { key: "guards", label: "Guards", color: "#a855f7" },
+    ].filter((c) => buckets[c.key] > 0);
+
+    const segments = cats.map((c) => {
+        const w = Math.max(1.5, (buckets[c.key] / CONTEXT_WINDOW) * 100);
+        return `<span class="ctx-seg" style="width:${w}%;background:${c.color}" title="${esc(c.label)}"></span>`;
+    }).join("");
+
+    root.hidden = false;
+    root.innerHTML = `
+        <div class="ctx-head">
+            <div>
+                <div class="ctx-title">Context usage</div>
+                <div class="ctx-sub">${pct}% full · ~${esc(fmtTok(used))} / ${esc(fmtTok(CONTEXT_WINDOW))} tokens${truncated ? " · preview" : ""}</div>
+            </div>
+        </div>
+        <div class="ctx-track">${segments}<span class="ctx-rest" style="width:${Math.max(0, 100 - pct)}%"></span></div>
+        <div class="ctx-legend">
+            ${cats.map((c) => `
+                <div class="ctx-row">
+                    <span class="ctx-dot" style="background:${c.color}"></span>
+                    <span class="ctx-label">${esc(c.label)}</span>
+                    <span class="ctx-tok">${esc(fmtTok(buckets[c.key]))}</span>
+                </div>
+            `).join("")}
+        </div>
+    `;
+}
+
+/** What goes into the LLM — nested foldable sections */
+function renderLlmInputMessages(messages, truncated) {
     if (!messages || !messages.length) return `<div class="muted">Waiting for model input…</div>`;
 
-    let html = `
-        <div class="blackbox">
-            <strong>System prompt</strong>
-            <span>Black box · see Prompt tab</span>
-        </div>
-        <div class="msg-stack">
-    `;
+    const systemMsg = messages.find((m) => m && m.role === "system");
+    const split = splitSystemPrompt(systemMsg ? systemMsg.content : "");
+    const truncNote = truncated
+        ? `<div class="muted sm">Live preview truncated — full bodies load on select/poll.</div>`
+        : "";
+
+    const historyItems = [];
+    const thisTurnItems = [];
 
     messages.forEach((m) => {
         if (!m || m.role === "system") return;
         const parts = splitContent(m.content || "");
+        const full = String(m.content || "");
 
         if (parts.customerText !== undefined) {
-            html += `
-                <div class="msg-card">
-                    <div class="msg-role user">Customer (this turn)</div>
-                    <div class="msg-body"><div class="quote">${esc(parts.customerText)}</div></div>
-                </div>`;
+            thisTurnItems.push(`
+                <details class="fold-item" open>
+                    <summary>Customer message</summary>
+                    <div class="fold-body"><div class="quote">${esc(parts.customerText)}</div></div>
+                </details>`);
             return;
         }
         if (parts.toolName) {
             const resultObj = tryParseJson(parts.toolResult);
-            html += `
-                <div class="msg-card">
-                    <div class="msg-role tool">Tool result · ${esc(parts.toolName)}</div>
-                    <div class="msg-body">${resultObj ? renderObjectCompact(resultObj) : `<div class="quote">${esc(parts.toolResult)}</div>`}</div>
-                </div>`;
+            thisTurnItems.push(`
+                <details class="fold-item" open>
+                    <summary>Tool · ${esc(parts.toolName)}</summary>
+                    <div class="fold-body">${resultObj ? renderObjectCompact(resultObj) : `<div class="quote">${esc(parts.toolResult)}</div>`}</div>
+                </details>`);
             return;
         }
         if (parts.guardText) {
-            html += `
-                <div class="msg-card">
-                    <div class="msg-role guard">Guard correction</div>
-                    <div class="msg-body"><div class="quote">${esc(parts.guardText)}</div></div>
-                </div>`;
+            thisTurnItems.push(`
+                <details class="fold-item" open>
+                    <summary>Guard correction</summary>
+                    <div class="fold-body"><div class="quote">${esc(parts.guardText)}</div></div>
+                </details>`);
             return;
         }
         if (m.role === "assistant") {
-            html += `
-                <div class="msg-card">
-                    <div class="msg-role assistant">Earlier model decision</div>
-                    <div class="msg-body">${renderDecisionPretty(m.content)}</div>
-                </div>`;
+            historyItems.push(`
+                <details class="fold-item">
+                    <summary>Model decision</summary>
+                    <div class="fold-body">${renderDecisionPretty(m.content)}</div>
+                </details>`);
             return;
         }
-        html += `
-            <div class="msg-card">
-                <div class="msg-role">${esc((m.role || "msg").toUpperCase())}</div>
-                <div class="msg-body"><div class="quote">${esc((m.content || "").slice(0, 500))}${(m.content || "").length > 500 ? "…" : ""}</div></div>
-            </div>`;
+        historyItems.push(`
+            <details class="fold-item">
+                <summary>${esc((m.role || "msg").toUpperCase())} message</summary>
+                <div class="fold-body"><div class="quote">${esc(full)}</div></div>
+            </details>`);
     });
 
-    html += "</div>";
-    return html;
+    return `
+        <div class="fold-stack">
+            ${truncNote}
+            <details class="fold-section">
+                <summary>System prompt <span class="badge">${esc(fmtTok(estimateTokens(split.rules) + estimateTokens(split.ddl)))} tok</span></summary>
+                <div class="fold-body nested">
+                    <details class="fold-item">
+                        <summary>Core rules</summary>
+                        <div class="fold-body"><pre class="ddl-block rules">${esc(split.rules)}</pre></div>
+                    </details>
+                    <details class="fold-item">
+                        <summary>Relevant DB Schema</summary>
+                        <div class="fold-body">
+                            <div class="ddl-meta">From <code>Relevant_DB_Schema.txt</code></div>
+                            <pre class="ddl-block">${esc(split.ddl || "(none)")}</pre>
+                        </div>
+                    </details>
+                </div>
+            </details>
+            <details class="fold-section">
+                <summary>Prior history <span class="badge">${historyItems.length}</span></summary>
+                <div class="fold-body nested">
+                    ${historyItems.length ? historyItems.join("") : "<div class='muted sm'>No prior messages</div>"}
+                </div>
+            </details>
+            <details class="fold-section" open>
+                <summary>This turn input <span class="badge">${thisTurnItems.length}</span></summary>
+                <div class="fold-body nested">
+                    ${thisTurnItems.length ? thisTurnItems.join("") : "<div class='muted sm'>No turn payload yet</div>"}
+                </div>
+            </details>
+        </div>
+    `;
 }
 
-/* ── Center waterfall: LLM I/O + tools only ─────────── */
+function bindWaterfallScrollGuard() {
+    const el = $("waterfall");
+    if (!el || state._scrollGuardBound) return;
+    state._scrollGuardBound = true;
+    el.addEventListener("scroll", () => {
+        const gap = el.scrollHeight - el.scrollTop - el.clientHeight;
+        state.autoFollowScroll = gap < 120;
+    }, { passive: true });
+}
+
+/* ── Center: single selected turn ───────────────────── */
 
 function renderWaterfall(turn) {
     const root = $("waterfall");
+    bindWaterfallScrollGuard();
+    if (!turn) {
+        root.innerHTML = '<div class="empty">No turn selected</div>';
+        return;
+    }
+    const prevScroll = root.scrollTop;
     const steps = ((turn.steps && turn.steps.length) ? turn.steps : synthesizeSteps(turn))
-        .filter((s) => !["input", "turn_end"].includes(s.kind)) // state/end live in side panel; input shown in llm_in
+        .filter((s) => !["input", "turn_end", "stt", "tts"].includes(s.kind))
         .sort((a, b) => (a.at || 0) - (b.at || 0));
 
-    // Always lead with a compact user line
     let html = `
         <div class="flow-card user-lead">
             <div class="flow-head">
@@ -467,8 +786,11 @@ function renderWaterfall(turn) {
     }
 
     root.innerHTML = html;
-    const liveCard = root.querySelector(".flow-card.live");
-    if (liveCard) liveCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (state.followLive && state.autoFollowScroll) {
+        root.scrollTop = root.scrollHeight;
+    } else {
+        root.scrollTop = prevScroll;
+    }
 }
 
 function kindLabel(kind) {
@@ -491,7 +813,6 @@ function statusClass(status) {
 
 function synthesizeSteps(turn) {
     const steps = [];
-    if (turn.stt) steps.push({ kind: "stt", label: "Speech-to-Text", status: "done", data: turn.stt, duration_ms: turn.stt.duration_ms, at: turn.created_at });
     (turn.llm_calls || []).forEach((c, i) => {
         steps.push({ kind: "llm_in", label: `Sent to LLM #${i + 1}`, status: "done", ref: i, at: c.started_at });
         if (c.status === "running") steps.push({ kind: "llm", label: `Inferring #${i + 1}`, status: "active", ref: i, at: c.started_at });
@@ -499,18 +820,16 @@ function synthesizeSteps(turn) {
     });
     (turn.guards || []).forEach((g) => steps.push({ kind: "guard", label: g.name, status: "warn", data: g }));
     (turn.tools || []).forEach((t, i) => steps.push({ kind: "tool", label: t.name, status: t.status, duration_ms: t.duration_ms, ref: i }));
-    if (turn.tts) steps.push({ kind: "tts", label: "TTS", status: "done", data: turn.tts, duration_ms: turn.tts.duration_ms });
     return steps;
 }
 
 function renderStepBody(turn, step) {
-    if (step.kind === "stt") {
-        const d = step.data || turn.stt || {};
-        return fieldRows([["Transcript", d.transcript], ["Lang", d.language], ["Disabled", d.disabled]]);
-    }
     if (step.kind === "llm_in") {
         const call = (turn.llm_calls || [])[step.ref] || {};
-        return renderLlmInputMessages(call.messages || (step.data && step.data.messages));
+        return renderLlmInputMessages(
+            call.messages || (step.data && step.data.messages),
+            !!call.messages_truncated
+        );
     }
     if (step.kind === "llm") {
         if (step.status === "active") {
@@ -535,10 +854,6 @@ function renderStepBody(turn, step) {
             <div class="mini-title">Result</div>${renderObjectCompact(tool.result)}
         `;
     }
-    if (step.kind === "tts") {
-        const d = step.data || turn.tts || {};
-        return fieldRows([["Voice", d.voice], ["Chars", d.char_length], ["Duration", fmtMs(d.duration_ms)]]);
-    }
     return "";
 }
 
@@ -548,6 +863,7 @@ function renderTurnState(turn) {
     const root = $("state-content");
     if (!turn) {
         root.innerHTML = '<div class="empty">Select a turn to see before / after state</div>';
+        renderContextUsage(null);
         return;
     }
     const before = turn.state_before || {};
@@ -582,6 +898,7 @@ function renderTurnState(turn) {
         html += `</div>`;
     }
     root.innerHTML = html;
+    renderContextUsage(turn);
 }
 
 function renderStateBlock(obj, keys, diff, side) {
@@ -660,7 +977,7 @@ function updateStatusFromTurn(turn) {
     if (turn.status === "completed") {
         $("pulse").className = "pulse idle";
         $("status-text").textContent = "Idle";
-        state.followLive = true;
+        // Do not force-follow after completion — preserves user scroll position
         return;
     }
     if (turn.status === "error") {
@@ -682,7 +999,10 @@ function updateLivePipeline(turn) {
     const completed = new Set((turn.steps || [])
         .filter((s) => ["done", "warn", "error"].includes(s.status))
         .map((s) => (s.kind === "llm_in" || s.kind === "llm_out" ? "llm" : s.kind)));
-    ["input", "stt", "llm", "guard", "tool", "tts"].forEach((kind, i) => {
+    // Map hidden STT/TTS live steps onto neighboring visible nodes
+    if (live === "stt") live = "input";
+    if (live === "tts") live = "tool";
+    ["input", "llm", "guard", "tool"].forEach((kind, i) => {
         const node = document.querySelector(`.pipe-node[data-step="${kind}"]`);
         if (!node) return;
         if (live === kind) node.classList.add(kind === "guard" ? "warn" : "active");
@@ -719,11 +1039,18 @@ function extractPromptText(content) {
     return clean;
 }
 
-function renderPromptView(text) {
+function renderPromptView(text, ddlText, note) {
     const root = $("prompt-view");
     const parts = String(text || "").split(/\n(?=##\s+)/);
-    if (!String(text || "").trim()) { root.innerHTML = '<div class="empty">No prompt</div>'; return; }
+    if (!String(text || "").trim() && !ddlText) {
+        root.innerHTML = '<div class="empty">No prompt</div>';
+        return;
+    }
     let html = "";
+    if (note) {
+        html += `<div class="ddl-meta banner">${esc(note)}</div>`;
+    }
+    html += `<div class="mini-title">System rules (core/prompts.py)</div>`;
     parts.forEach((part, idx) => {
         const trimmed = part.trim();
         if (!trimmed) return;
@@ -736,6 +1063,9 @@ function renderPromptView(text) {
         const body = lines.slice(1).join("\n").trim();
         html += `<details class="prompt-section" ${idx < 3 ? "open" : ""}><summary>${esc(title)}</summary><div class="prompt-section-body">${formatPromptBody(body)}</div></details>`;
     });
+    html += `<div class="mini-title">Relevant DB Schema pasted into every LLM call</div>`;
+    html += `<div class="ddl-meta">File: <code>Relevant_DB_Schema.txt</code> · appended as <code>## Relevant DB Schema (write SELECT from user intent)</code></div>`;
+    html += `<pre class="ddl-block">${esc(ddlText || "(empty)")}</pre>`;
     root.innerHTML = html;
 }
 
@@ -755,23 +1085,45 @@ function setPromptMode(mode) {
     $("prompt-view").hidden = mode !== "view";
     $("prompt-editor").hidden = mode !== "edit";
     $("btn-save-prompt").hidden = mode !== "edit";
-    if (mode === "view") renderPromptView($("prompt-editor").value);
+    if (mode === "view") {
+        renderPromptView($("prompt-editor").value, state.ddlText || "", state.promptNote || "");
+    }
 }
 
 async function loadPrompt() {
     try {
         const data = await (await fetch("/api/prompt")).json();
-        if (data.content) {
-            $("prompt-editor").value = extractPromptText(data.content);
-            setPromptSavedLabel(data.saved_at);
-            setPromptMode("view");
-        }
+        if (data.error) throw new Error(data.error);
+        state.ddlText = data.ddl || "";
+        state.promptNote = data.note || "";
+        $("prompt-editor").value = data.prompt_body || extractPromptText(data.content || "");
+        setPromptSavedLabel(data.saved_at);
+        setPromptMode("view");
     } catch (e) { console.error(e); }
 }
 
 document.querySelectorAll(".tab").forEach((tab) => { tab.onclick = () => switchTab(tab.dataset.tab); });
 $("filter-q").oninput = (e) => { state.filterQ = e.target.value; renderSessions(); };
 $("filter-mode").onchange = (e) => { state.filterMode = e.target.value; renderSessions(); };
+$("btn-clear-sessions").onclick = async () => {
+    try {
+        await fetch("/api/clear", { method: "POST" });
+    } catch (_) {}
+    state.sessions = [];
+    state.turnsBySession = {};
+    state.selectedSessionId = null;
+    state.selectedTurnId = null;
+    state.selectedTurn = null;
+    state.showOlderSessions = false;
+    $("waterfall").innerHTML = '<div class="empty">No turn selected</div>';
+    $("waterfall-title").textContent = "Turn Flow";
+    $("waterfall-sub").textContent = "Select a turn on the left";
+    $("state-content").innerHTML = '<div class="empty">Select a turn to see before / after state</div>';
+    renderContextUsage(null);
+    $("btn-export-turn").disabled = true;
+    $("btn-export-session").disabled = true;
+    renderSessions();
+};
 $("btn-export-turn").onclick = () => { if (state.selectedTurn) downloadJson(`turn-${state.selectedTurn.turn_id}.json`, state.selectedTurn); };
 $("btn-export-session").onclick = async () => {
     if (!state.selectedSessionId) return;
@@ -807,9 +1159,50 @@ async function bootstrapRest() {
         renderSessions();
         renderMetrics();
         updateKpis();
+        if (state.sessions.length) {
+            await focusLatestTurn(true);
+        }
     } catch (e) { console.error(e); }
+}
+
+let _pollBusy = false;
+async function pollLive() {
+    if (_pollBusy) return;
+    _pollBusy = true;
+    try {
+        const metrics = await (await fetch("/api/metrics")).json();
+        state.metrics = metrics;
+        renderMetrics();
+        updateKpis();
+        const sessions = await (await fetch("/api/sessions")).json();
+        state.sessions = sessions.sessions || [];
+        renderSessions();
+
+        const activeSid = metrics.active_session_id || (state.sessions[0] && state.sessions[0].session_id);
+        if (!activeSid) return;
+        await ensureSessionTurns(activeSid, true);
+        const turns = state.turnsBySession[activeSid] || [];
+        const live = turns.find((t) => t.status === "running" || t.live_step) || turns[0];
+        if (!live) return;
+
+        if (state.followLive || state.selectedTurnId === live.turn_id) {
+            const res = await fetch(`/api/turns/${encodeURIComponent(live.turn_id)}`);
+            if (res.ok) {
+                const turn = await res.json();
+                upsertTurn(turn);
+                if (state.followLive || state.selectedTurnId === turn.turn_id) {
+                    focusTurn(turn, false);
+                }
+            }
+        }
+    } catch (e) {
+        console.error(e);
+    } finally {
+        _pollBusy = false;
+    }
 }
 
 connectWS();
 loadPrompt();
 bootstrapRest();
+setInterval(pollLive, 2000);

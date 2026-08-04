@@ -113,13 +113,8 @@ def _append_step(turn: dict, step: dict):
 
 
 def _persist_turn(turn: dict):
-    """Append a completed turn snapshot to JSONL (best-effort)."""
-    try:
-        _ensure_data_dir()
-        with open(JSONL_PATH, "a", encoding="utf-8") as f:
-            f.write(json.dumps(turn, ensure_ascii=False, default=str) + "\n")
-    except Exception:
-        pass
+    """Persistence disabled — reload starts with an empty monitor (no prior clutter)."""
+    return
 
 
 def _trim_sessions():
@@ -210,14 +205,8 @@ def ingest_event(event: dict) -> dict | None:
                     },
                 })
             elif name == "stt":
+                # STT hidden in monitor UI for now — track live_step only, no flow card
                 turn["live_step"] = "stt"
-                _append_step(turn, {
-                    "kind": "stt",
-                    "label": "Speech-to-Text",
-                    "status": "active",
-                    "at": ts,
-                    "data": meta,
-                })
             elif name == "llm_inference":
                 _mark_active_steps_done(turn)
                 idx = len(turn["llm_calls"])
@@ -276,16 +265,9 @@ def ingest_event(event: dict) -> dict | None:
                     "ref": tool["index"],
                 })
             elif name == "tts":
-                _mark_active_steps_done(turn)
+                # TTS hidden in monitor UI for now — no flow card
                 turn["live_step"] = "tts"
                 turn["status"] = "running"
-                _append_step(turn, {
-                    "kind": "tts",
-                    "label": "Text-to-Speech",
-                    "status": "active",
-                    "at": ts,
-                    "data": meta,
-                })
             elif name == "guard":
                 pass
 
@@ -560,39 +542,33 @@ def set_prompt_saved_at(ts: float | None = None):
 
 
 def load_jsonl_into_memory(limit: int = 200):
-    """Load recent turns from disk on startup."""
-    if not os.path.exists(JSONL_PATH):
-        return
-    try:
-        with open(JSONL_PATH, "r", encoding="utf-8") as f:
-            lines = f.readlines()
-        for line in lines[-limit:]:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                turn = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            tid = turn.get("turn_id")
-            sid = turn.get("session_id")
-            if not tid or not sid:
-                continue
-            with _lock:
-                if sid not in _sessions:
-                    _sessions[sid] = _new_session(sid, turn.get("created_at") or time.time())
-                session = _sessions[sid]
-                _turns[tid] = turn
-                if tid not in session["turn_ids"]:
-                    session["turn_ids"].append(tid)
-                session["turn_count"] = len(session["turn_ids"])
-                session["updated_at"] = max(session.get("updated_at", 0), turn.get("updated_at") or 0)
-                session["preview"] = (turn.get("customer_input") or session.get("preview") or "")[:80]
-                session["last_order_step"] = turn.get("order_step_after") or session.get("last_order_step")
-                if turn.get("state"):
-                    _live_state[sid] = turn["state"]
-                if tid not in _turn_order:
-                    _turn_order.append(tid)
-        _trim_sessions()
-    except Exception:
-        pass
+    """Disabled — monitor does not reload prior turns from disk (fresh session each restart)."""
+    return
+
+
+def clear_store(*, wipe_jsonl: bool = True):
+    """Wipe in-memory sessions/turns (and optionally truncate JSONL) so reload starts clean."""
+    global _active_session_id, _last_telemetry_at
+    global _tool_errors, _tool_total
+    with _lock:
+        _sessions.clear()
+        _turns.clear()
+        _turn_order.clear()
+        _live_state.clear()
+        _active_session_id = None
+        _last_telemetry_at = None
+        _metric_turn_ms.clear()
+        _metric_llm_ms.clear()
+        _metric_tool_ms.clear()
+        _metric_stt_ms.clear()
+        _metric_tts_ms.clear()
+        _guard_counts.clear()
+        _tool_errors = 0
+        _tool_total = 0
+    if wipe_jsonl:
+        try:
+            _ensure_data_dir()
+            with open(JSONL_PATH, "w", encoding="utf-8") as f:
+                f.write("")
+        except Exception:
+            pass

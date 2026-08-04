@@ -1,0 +1,991 @@
+========================================================================
+products  rows=84  cols=49
+  product_id                       int                      key=PRI null=NO
+  category_id                      int                      key=-   null=NO
+  price                            decimal(11,2)            key=-   null=NO
+  price_vat                        decimal(11,2)            key=-   null=NO
+  before_discount                  float(11,2)              key=-   null=YES
+  quantity                         double                   key=-   null=NO
+  foc_qty                          int                      key=-   null=NO
+  is_bundle                        int                      key=-   null=NO
+  bundle_items                     text                     key=-   null=YES
+  material                         varchar(100)             key=-   null=NO
+  unit                             varchar(50)              key=-   null=NO
+  product_name                     text                     key=-   null=NO
+  product_description              text                     key=-   null=NO
+  product_sort                     int                      key=-   null=NO
+  product_sort_cc                  int                      key=-   null=NO
+  presale_sort                     int                      key=-   null=YES
+  status                           int                      key=MUL null=NO
+  created_at                       datetime                 key=-   null=NO
+  updated_at                       datetime                 key=-   null=NO
+  bottle_quantity                  int                      key=-   null=NO
+  address_other_detail             varchar(100)             key=-   null=YES
+  customer_group_title             longtext                 key=-   null=YES
+  companies                        longtext                 key=-   null=YES
+  key_value                        varchar(100)             key=-   null=YES
+  categories                       longtext                 key=-   null=YES
+  deleted_at                       timestamp                key=-   null=YES
+  company_id                       int                      key=-   null=YES
+  erp_id                           int                      key=-   null=YES
+  sku                              varchar(100)             key=-   null=YES
+  address_meta                     longtext                 key=-   null=YES
+  product_meta                     longtext                 key=-   null=YES
+  weight                           double                   key=-   null=YES
+  volume_2                         double                   key=-   null=YES
+  product_images                   longtext                 key=-   null=YES
+  volume                           longtext                 key=-   null=YES
+  add_on                           int                      key=-   null=NO
+  is_coupon                        int                      key=-   null=NO
+  show_in_oms                      int                      key=-   null=NO
+  for_whatsapp                     int                      key=-   null=NO
+  5g                               int                      key=MUL null=NO
+  pet                              int                      key=MUL null=NO
+  my5g                             int                      key=MUL null=NO
+  mypet                            int                      key=MUL null=NO
+  product_type                     int                      key=-   null=YES
+  is_custody                       int                      key=-   null=YES
+  show_in_load                     int                      key=-   null=NO
+  company_price                    decimal(11,2)            key=-   null=NO
+  show_in_sales                    int                      key=-   null=NO
+  factor                           decimal(11,2)            key=-   null=NO
+SAMPLE:
+  {"product_id": "1", "product_name": "{\"en\":\"Tania Gallon Refill \",\"ar\":\"تانيا جالون إعادة تعبئة\"}", "unit": "{\"en\":\"Gallon\",\"ar\":\"جالون\"}", "price_vat": "8.75", "status": "1", "show_in_oms": "1", "deleted_at": null, "bottle_quantity": "1", "product_sort": "2", "sku": null, "category_id": "2"}
+  {"product_id": "2", "product_name": "{\"en\":\"Tania 5L(1 Carton - 4 Bottles)\",\"ar\":\"تانيا 5 لتر(1 كرتون - 4 عبوة)\"}", "unit": "{\"en\":\"Carton\",\"ar\":\"كرتون\"}", "price_vat": "18.09", "status": "1", "show_in_oms": "1", "deleted_at": null, "bottle_quantity": "1", "product_sort": "1", "sku": null, "category_id": "1"}
+
+========================================================================
+categories  rows=3  cols=11
+  category_id                      int                      key=PRI null=NO
+  parent_id                        int                      key=-   null=YES
+  category_name                    text                     key=-   null=NO
+  category_description             text                     key=-   null=YES
+  image                            varchar(255)             key=-   null=YES
+  web-image                        text                     key=-   null=YES
+  icon                             varchar(255)             key=-   null=YES
+  category_sort                    int                      key=-   null=NO
+  category_status                  int                      key=-   null=YES
+  created_at                       datetime                 key=-   null=NO
+  updated_at                       datetime                 key=-   null=NO
+SAMPLE:
+  {"category_id": "1", "parent_id": null, "category_name": "{\"en\":\"Carton\",\"ar\":\"كرتون\"}", "category_description": "{\"en\":\"Carton\",\"ar\":\"كرتون\"}", "image": "/public/uploads/categories/UIMG2021092761518e5f86773.jpg", "web-image": "/public/uploads/categories/fruit.jpg", "icon": "/public/uploads/categories/icons/fruits.png", "category_sort": "6", "category_status": "1", "created_at": "2019-07-30 00:00:00", "updated_at": "2023-05-01 09:21:23"}
+  {"category_id": "2", "parent_id": null, "category_name": "{\"en\":\"Gallon\",\"ar\":\"جالون\"}", "category_description": "{\"en\":\"Gallon\",\"ar\":\"جالون\"}", "image": "/public/uploads/categories/UIMG2021092761518ed8c90b8.jpg", "web-image": "/public/uploads/categories/vegetables.jpg", "icon": "/public/uploads/categories/icons/vegetables.png", "category_sort": "13", "category_status": "1", "created_at": "2019-07-30 00:00:00", "updated_at": "2023-05-01 09:22:16"}
+
+========================================================================
+products_in_category  rows=10  cols=2
+  product_id                       int                      key=PRI null=NO
+  category_id                      int                      key=PRI null=NO
+SAMPLE:
+  {"product_id": "0", "category_id": "0"}
+  {"product_id": "1", "category_id": "1"}
+
+========================================================================
+similar_products  rows=3  cols=5
+  id                               int                      key=PRI null=NO
+  product_id                       int                      key=-   null=NO
+  sort                             int                      key=-   null=NO
+  created_at                       datetime                 key=-   null=NO
+  updated_at                       datetime                 key=-   null=NO
+SAMPLE:
+  {"id": "1", "product_id": "18", "sort": "1", "created_at": "2021-09-28 18:28:25", "updated_at": "2021-11-02 13:25:02"}
+  {"id": "2", "product_id": "146", "sort": "3", "created_at": "2021-09-28 18:29:13", "updated_at": "2021-11-02 13:25:00"}
+
+========================================================================
+customers  rows=1011995  cols=79
+  customer_id                      int                      key=PRI null=NO
+  segment_id                       int                      key=MUL null=YES
+  parent_id                        int                      key=MUL null=YES
+  hide_price                       int                      key=-   null=YES
+  account_type_id                  int                      key=-   null=NO
+  classification_id                int                      key=-   null=YES
+  group_id                         int                      key=-   null=YES
+  channel_id                       int                      key=MUL null=NO
+  sub_channel_id                   int                      key=MUL null=YES
+  agent_id                         int                      key=MUL null=NO
+  erp_id                           varchar(100)             key=MUL null=YES
+  update_customer_sync             int                      key=-   null=NO
+  source                           int                      key=-   null=NO
+  status                           int                      key=-   null=NO
+  token                            varchar(250)             key=-   null=YES
+  name                             text                     key=-   null=NO
+  name_ar                          text                     key=-   null=YES
+  email                            varchar(120)             key=-   null=YES
+  email_verified                   tinyint                  key=-   null=NO
+  otp                              int                      key=-   null=NO
+  mobile                           varchar(20)              key=MUL null=NO
+  wallet                           decimal(13,2)            key=-   null=YES
+  reward_points                    decimal(13,1)            key=-   null=NO
+  coupon_quantity                  int                      key=-   null=YES
+  credit_limit                     float                    key=-   null=NO
+  credit_days                      int                      key=-   null=YES
+  allow_marketing_sms              int                      key=-   null=NO
+  current_balance                  float                    key=-   null=YES
+  login_attempt                    int                      key=-   null=YES
+  last_login                       datetime                 key=-   null=YES
+  otp_delay                        datetime                 key=-   null=YES
+  staff_id                         int                      key=-   null=YES
+  preferred_language_id            varchar(3)               key=-   null=YES
+  preferred_communication_id       int                      key=-   null=YES
+  auth_key                         varchar(250)             key=-   null=YES
+  fcm_token                        varchar(5000)            key=-   null=YES
+  valid_till                       datetime                 key=-   null=YES
+  branch_address                   text                     key=-   null=YES
+  user_name                        varchar(255)             key=MUL null=YES
+  password                         varchar(255)             key=-   null=YES
+  force_change_password            int                      key=-   null=NO
+  created_at                       datetime                 key=MUL null=NO
+  updated_at                       datetime                 key=-   null=NO
+  mage_customer_id                 int                      key=-   null=YES
+  customer_group_id                int                      key=-   null=YES
+  companies                        longtext                 key=-   null=YES
+  addresses                        longtext                 key=-   null=YES
+  pricing_profile_id               int                      key=-   null=YES
+  source_id                        int                      key=-   null=YES
+  created_by                       int                      key=-   null=YES
+  customer_meta                    longtext                 key=-   null=YES
+  deleted_at                       timestamp                key=-   null=YES
+  company_id                       int                      key=-   null=YES
+  tax_id                           varchar(100)             key=-   null=YES
+  weight                           int                      key=-   null=NO
+  water_drops                      int                      key=-   null=NO
+  vat                              varchar(255)             key=-   null=YES
+  custody_limit                    int                      key=-   null=YES
+  division                         varchar(255)             key=-   null=YES
+  payment_type                     text                     key=-   null=YES
+  is_pending                       int                      key=-   null=NO
+  driver_id                        int                      key=MUL null=YES
+  supervisor_id                    int                      key=-   null=YES
+  linked_to_territory              int                      key=MUL null=NO
+  territory_id                     int                      key=MUL null=YES
+  allow_good_return                int                      key=-   null=NO
+  allow_bad_return                 int                      key=-   null=NO
+  cr_no                            varchar(255)             key=-   null=YES
+  pending_with_supervisor          int                      key=MUL null=NO
+  pending_with_channel_manager     int                      key=-   null=NO
+  pending_with_accountant          int                      key=-   null=NO
+  rejection_reason_id              int                      key=-   null=YES
+  segment_date                     date                     key=-   null=YES
+  update_segment                   int                      key=-   null=YES
+  allow_coupon_foc                 int                      key=-   null=NO
+  allow_email_notification         int                      key=-   null=NO
+  allow_promotion_notification     int                      key=-   null=NO
+  advance_amount                   float(12,2)              key=-   null=NO
+  collective_invoice               int                      key=-   null=NO
+SAMPLE:
+  {"customer_id": "1", "mobile": "966533621446", "name": "Al-Wasti Plastic Factory Company", "email": null, "status": "1", "created_at": "2023-10-17 11:51:20"}
+  {"customer_id": "2", "mobile": "966163855709", "name": "Thamer Abdul Rahman Al-Khalaf Food Supplies", "email": null, "status": "1", "created_at": "2023-10-17 11:51:20"}
+
+========================================================================
+addresses  rows=920059  cols=37
+  address_id                       int unsigned             key=PRI null=NO
+  customer_id                      bigint                   key=MUL null=NO
+  mobile                           varchar(50)              key=MUL null=YES
+  erp_id                           varchar(100)             key=-   null=YES
+  type                             int                      key=-   null=NO
+  update_address_sync              int                      key=-   null=NO
+  location_id                      int                      key=MUL null=NO
+  title                            text                     key=-   null=NO
+  address                          text                     key=-   null=NO
+  map_info                         varchar(5000)            key=-   null=YES
+  other_detail                     text                     key=-   null=YES
+  sap_response                     text                     key=-   null=YES
+  source_id                        varchar(100)             key=-   null=YES
+  agent_id                         int                      key=-   null=YES
+  status                           int                      key=-   null=NO
+  created_at                       datetime                 key=-   null=NO
+  updated_at                       datetime                 key=-   null=NO
+  mage_address_id                  int                      key=-   null=YES
+  city_id_updated                  double                   key=-   null=YES
+  address_of                       varchar(100)             key=-   null=YES
+  address_other_detail             varchar(100)             key=-   null=YES
+  companies                        longtext                 key=-   null=YES
+  city_id                          int                      key=-   null=YES
+  longitude                        double(15,12)            key=-   null=YES
+  address_meta                     longtext                 key=-   null=YES
+  location_updated                 double                   key=-   null=YES
+  latitude                         double(15,12)            key=-   null=YES
+  deleted_at                       timestamp                key=-   null=YES
+  created_by                       int                      key=-   null=YES
+  address_detail                   varchar(100)             key=-   null=YES
+  address_title                    varchar(100)             key=-   null=YES
+  house_no                         varchar(200)             key=-   null=YES
+  floor_no                         varchar(200)             key=-   null=YES
+  route_id                         int                      key=MUL null=YES
+  new_route_id                     int                      key=-   null=YES
+  address_day                      varchar(100)             key=-   null=YES
+  map_info_old                     varchar(1000)            key=-   null=YES
+SAMPLE:
+  {"address_id": "1", "customer_id": "1", "address": "Omar Bin Al Khattab ST", "map_info": "{\"latitude\":\"26.3967933\",\"longitude\":\"43.9464\"}", "latitude": "26.3967933", "longitude": "43.9464", "updated_at": "2026-04-30 16:17:10", "deleted_at": null}
+  {"address_id": "2", "customer_id": "2", "address": "Abo Bakr Al Sadiek", "map_info": "{\"latitude\":\"26.3839267\",\"longitude\":\"43.9402867\"}", "latitude": "26.3839267", "longitude": "43.9402867", "updated_at": "2026-02-21 12:09:09", "deleted_at": null}
+
+========================================================================
+address_types  rows=3  cols=4
+  address_type_id                  int                      key=PRI null=NO
+  name                             text                     key=-   null=YES
+  created_at                       datetime                 key=-   null=NO
+  updated_at                       datetime                 key=-   null=NO
+SAMPLE:
+  {"address_type_id": "1", "name": "{\"en\":\"home\",\"ar\":\"home_ar\"}", "created_at": "2020-02-10 00:00:00", "updated_at": "2020-02-10 00:00:00"}
+  {"address_type_id": "2", "name": "{\"en\":\"mosque\",\"ar\":\"mosque_ar\"}", "created_at": "2020-02-10 00:00:00", "updated_at": "2020-02-10 00:00:00"}
+
+========================================================================
+orders  rows=5974481  cols=107
+  order_id                         int                      key=PRI null=NO
+  customer_id                      int                      key=MUL null=YES
+  order_number                     varchar(30)              key=MUL null=YES
+  salla_order_id                   varchar(30)              key=-   null=YES
+  base_order_id                    int                      key=-   null=YES
+  shipping_address_id              int                      key=-   null=YES
+  payment_address_id               int                      key=-   null=YES
+  payment_method                   varchar(40)              key=-   null=YES
+  payment_id                       varchar(500)             key=MUL null=YES
+  shipping_method                  varchar(40)              key=-   null=YES
+  total                            decimal(10,2)            key=-   null=NO
+  status                           int                      key=MUL null=NO
+  order_status_id                  int                      key=MUL null=NO
+  prev_order_status_id             int                      key=-   null=YES
+  order_status                     varchar(40)              key=-   null=YES
+  erp_id                           varchar(100)             key=-   null=YES
+  status_erp                       datetime                 key=-   null=YES
+  status_driver                    datetime                 key=-   null=YES
+  status_delivered                 datetime                 key=-   null=YES
+  status_cancelled                 datetime                 key=-   null=YES
+  driver_id                        int                      key=-   null=YES
+  created_at                       datetime                 key=-   null=NO
+  updated_at                       datetime                 key=-   null=NO
+  delivery_date                    date                     key=-   null=YES
+  wallet_amount                    decimal(13,2)            key=-   null=YES
+  wallet_discount                  decimal(13,2)            key=-   null=YES
+  discount                         decimal(10,2)            key=-   null=YES
+  vat                              decimal(10,2)            key=-   null=NO
+  grand_total                      decimal(10,2)            key=-   null=NO
+  is_favourite                     int                      key=-   null=YES
+  cancel_reason_id                 int                      key=MUL null=YES
+  cancel_reason                    text                     key=-   null=YES
+  promocode_id                     int                      key=-   null=YES
+  promotion_id                     int                      key=-   null=YES
+  prod_quality_rating              float                    key=-   null=YES
+  delivery_time_rating             float                    key=-   null=YES
+  customer_serv_rating             float                    key=-   null=YES
+  customer_comments                text                     key=-   null=YES
+  rating_created_at                datetime                 key=-   null=YES
+  rating_sent_in_sap               tinyint                  key=-   null=NO
+  enable_feedback                  int                      key=-   null=NO
+  source_id                        varchar(100)             key=MUL null=YES
+  delivery_time                    varchar(200)             key=-   null=YES
+  delivery_day                     varchar(200)             key=MUL null=NO
+  actual_delivery_date             date                     key=-   null=YES
+  delivery_fee                     decimal(10,2)            key=-   null=NO
+  agent_id                         int                      key=MUL null=YES
+  act_sold_qty                     int                      key=-   null=YES
+  act_paid_amount                  decimal(13,2)            key=-   null=YES
+  mage_order_id                    int                      key=-   null=YES
+  order_pin                        int                      key=-   null=YES
+  refund_to                        tinytext                 key=-   null=YES
+  coupon_qty                       int                      key=-   null=NO
+  preferred_date                   timestamp                key=-   null=YES
+  companies                        longtext                 key=-   null=YES
+  assigned_trip                    bigint                   key=-   null=YES
+  amount_due                       double                   key=-   null=YES
+  amount_paid                      double                   key=-   null=YES
+  balance                          double                   key=-   null=YES
+  collection_type_id               int                      key=-   null=YES
+  rating                           longtext                 key=-   null=YES
+  cart_id                          int                      key=-   null=YES
+  gift_products                    longtext                 key=-   null=YES
+  created_by                       int                      key=-   null=YES
+  deleted_at                       timestamp                key=MUL null=YES
+  order_meta                       longtext                 key=-   null=YES
+  company_id                       int                      key=-   null=YES
+  delivery_slot_id                 int                      key=-   null=YES
+  reciept_no                       varchar(100)             key=-   null=YES
+  tax_invoice                      varchar(100)             key=-   null=YES
+  delivery_invoice                 varchar(100)             key=-   null=YES
+  order_kpi_id                     varchar(100)             key=-   null=YES
+  e_signature                      varchar(100)             key=-   null=YES
+  collection_type_key              varchar(100)             key=-   null=YES
+  payable_amount                   int                      key=-   null=YES
+  total_price                      int                      key=-   null=YES
+  drop_at_gate                     int                      key=-   null=YES
+  order_note                       text                     key=-   null=YES
+  delivery_date_ds                 date                     key=-   null=YES
+  invoice_no                       varchar(50)              key=-   null=YES
+  aqg_dropoff_loc_id               int                      key=-   null=YES
+  customer_dropoff_loc_id          int                      key=-   null=YES
+  receiver_no                      int                      key=-   null=YES
+  invoice_link                     varchar(1000)            key=-   null=YES
+  is_split                         int                      key=-   null=NO
+  parent_order_id                  int                      key=-   null=YES
+  is_preseller_order               int                      key=MUL null=NO
+  is_dd_order                      int                      key=MUL null=NO
+  trip_id                          int                      key=MUL null=YES
+  is_return_order                  int                      key=MUL null=YES
+  delivery_note                    varchar(255)             key=-   null=YES
+  check_no                         varchar(100)             key=-   null=YES
+  bank_key                         varchar(40)              key=-   null=YES
+  previous_order_id                int                      key=-   null=YES
+  sap_total_amount                 decimal(10,3)            key=-   null=NO
+  sap_amount_wovat                 decimal(10,3)            key=-   null=NO
+  sap_vat                          decimal(10,3)            key=-   null=NO
+  return_reason_id                 int                      key=-   null=YES
+  order_pod                        varchar(200)             key=-   null=YES
+  payment_belnr                    varchar(100)             key=-   null=YES
+  delivery_no                      varchar(50)              key=-   null=YES
+  reward_id                        int                      key=-   null=NO
+  donation_amount                  decimal(10,2)            key=-   null=NO
+  qitaf_amount                     decimal(10,2)            key=-   null=NO
+  po_reference                     varchar(100)             key=-   null=YES
+  opportunity_id                   int                      key=-   null=YES
+  mixed_promotion_ids              text                     key=-   null=YES
+SAMPLE:
+  {"order_id": "1", "customer_id": "120", "order_number": "120000001", "salla_order_id": null, "base_order_id": null, "shipping_address_id": "120", "payment_address_id": null, "payment_method": "CUSTOMER_CREDIT", "payment_id": null, "shipping_method": "Free Shipping", "total": "16.80", "status": "1", "order_status_id": "4", "prev_order_status_id": null}
+  {"order_id": "2", "customer_id": "29", "order_number": "29000001", "salla_order_id": null, "base_order_id": null, "shipping_address_id": "29", "payment_address_id": null, "payment_method": "CUSTOMER_CREDIT", "payment_id": null, "shipping_method": "Free Shipping", "total": "71.25", "status": "1", "order_status_id": "4", "prev_order_status_id": null}
+
+========================================================================
+order_items  rows=7858938  cols=33
+  order_item_id                    int                      key=PRI null=NO
+  order_id                         int                      key=MUL null=NO
+  product_id                       int                      key=MUL null=NO
+  variant_id                       int                      key=-   null=YES
+  quantity                         int                      key=-   null=NO
+  unit_price                       decimal(10,2)            key=-   null=YES
+  price                            decimal(10,2)            key=-   null=NO
+  created_at                       datetime                 key=-   null=NO
+  updated_at                       datetime                 key=-   null=NO
+  status                           int                      key=-   null=NO
+  foc_items                        int                      key=-   null=NO
+  foc_gift                         int                      key=-   null=NO
+  promotion_id                     int                      key=-   null=YES
+  mage_order_item_id               int                      key=-   null=YES
+  foc                              int                      key=-   null=YES
+  created_by                       int                      key=-   null=YES
+  deleted_at                       timestamp                key=-   null=YES
+  order_item_meta                  longtext                 key=-   null=YES
+  company_id                       int                      key=-   null=YES
+  erp_id                           int                      key=-   null=YES
+  companies                        longtext                 key=-   null=YES
+  total_vat                        double                   key=-   null=YES
+  unit_price_vat                   double                   key=-   null=YES
+  volume_2                         int                      key=-   null=YES
+  custody_qty                      int                      key=-   null=NO
+  deposit_amount                   decimal(10,2)            key=-   null=NO
+  deposit_quantity                 int                      key=-   null=NO
+  good_return_quantity             int                      key=-   null=NO
+  bad_return_quantity              int                      key=-   null=NO
+  discount_price                   decimal(12,2)            key=-   null=NO
+  return_price                     decimal(10,2)            key=-   null=NO
+  bundle_product_id                int                      key=-   null=YES
+  item_discount                    decimal(10,2)            key=-   null=NO
+SAMPLE:
+  {"order_item_id": "1", "order_id": "1", "product_id": "20027", "variant_id": null, "quantity": "2", "unit_price": "8.40", "price": "16.80", "created_at": "2023-10-21 19:39:24", "updated_at": "2023-10-21 19:39:24", "status": "1", "foc_items": "0", "foc_gift": "0", "promotion_id": null, "mage_order_item_id": null}
+  {"order_item_id": "2", "order_id": "2", "product_id": "2", "variant_id": null, "quantity": "5", "unit_price": "14.25", "price": "71.25", "created_at": "2023-10-23 10:49:19", "updated_at": "2023-10-23 10:49:19", "status": "1", "foc_items": "0", "foc_gift": "0", "promotion_id": null, "mage_order_item_id": null}
+
+========================================================================
+order_statuses  rows=14  cols=20
+  order_status_id                  int                      key=PRI null=NO
+  order_status_title               text                     key=-   null=NO
+  email_template                   int                      key=-   null=YES
+  sms_template                     int                      key=-   null=YES
+  invoice_template                 int                      key=-   null=YES
+  admin_template                   int                      key=-   null=YES
+  push_notification_template       int                      key=-   null=YES
+  status                           int                      key=MUL null=NO
+  customer_group_id                int                      key=-   null=YES
+  companies                        longtext                 key=-   null=YES
+  description                      varchar(100)             key=-   null=YES
+  order_status_meta                longtext                 key=-   null=YES
+  created_at                       timestamp                key=-   null=YES
+  updated_at                       timestamp                key=-   null=YES
+  company_id                       int                      key=-   null=YES
+  erp_id                           int                      key=-   null=YES
+  key_value                        varchar(100)             key=-   null=YES
+  deleted_at                       timestamp                key=-   null=YES
+  key                              varchar(500)             key=MUL null=YES
+  sequence                         int                      key=-   null=YES
+SAMPLE:
+  {"order_status_id": "1", "order_status_title": "{\"en\":\"payment pending\",\"ar\":\"قيد الانتظار\"}", "email_template": null, "sms_template": null, "invoice_template": null, "admin_template": null, "push_notification_template": null, "status": "1", "customer_group_id": null, "companies": null, "description": null, "order_status_meta": null, "created_at": null, "updated_at": null}
+  {"order_status_id": "2", "order_status_title": "{\"en\":\"Confirmed\",\"ar\":\"تم التأكيد\"}", "email_template": null, "sms_template": null, "invoice_template": null, "admin_template": null, "push_notification_template": null, "status": "1", "customer_group_id": null, "companies": null, "description": null, "order_status_meta": null, "created_at": null, "updated_at": null}
+
+========================================================================
+payments  rows=837949  cols=25
+  payment_id                       int                      key=PRI null=NO
+  cart_id                          int                      key=-   null=YES
+  customer_id                      int                      key=-   null=YES
+  payment_method                   text                     key=-   null=YES
+  option_key                       varchar(120)             key=-   null=YES
+  transaction_key                  varchar(120)             key=MUL null=YES
+  merchant_id                      varchar(500)             key=-   null=YES
+  amount                           decimal(10,2)            key=-   null=NO
+  status                           varchar(50)              key=-   null=NO
+  message                          text                     key=-   null=NO
+  type                             text                     key=-   null=YES
+  payment_date                     datetime                 key=-   null=NO
+  order_id                         int                      key=-   null=YES
+  deleted_at                       timestamp                key=-   null=YES
+  company_id                       int                      key=-   null=YES
+  erp_id                           int                      key=-   null=YES
+  companies                        longtext                 key=-   null=YES
+  transaction_date                 timestamp                key=-   null=YES
+  transaction_meta                 longtext                 key=-   null=YES
+  created_at                       timestamp                key=-   null=YES
+  updated_at                       timestamp                key=-   null=YES
+  meta_key                         varchar(100)             key=-   null=YES
+  transaction_status               varchar(100)             key=-   null=YES
+  refund_erp_id                    varchar(120)             key=-   null=YES
+  capture_id                       varchar(500)             key=-   null=YES
+SAMPLE:
+  {"payment_id": "1", "cart_id": null, "customer_id": "156054", "payment_method": null, "option_key": "MADA", "transaction_key": "424861008106", "merchant_id": "66d823a55766b156054", "amount": "59.49", "status": "000", "message": "", "type": null, "payment_date": "2024-09-04 12:11:10", "order_id": null, "deleted_at": null}
+  {"payment_id": "2", "cart_id": null, "customer_id": "161526", "payment_method": null, "option_key": "APPLE_PAY", "transaction_key": "424853006939", "merchant_id": "66d8242aa2dfc161526", "amount": "217.01", "status": "00", "message": "", "type": null, "payment_date": "2024-09-04 12:11:37", "order_id": null, "deleted_at": null}
+
+========================================================================
+sources  rows=14  cols=15
+  source_id                        int                      key=PRI null=NO
+  source_title                     varchar(60)              key=-   null=NO
+  source_group                     varchar(60)              key=-   null=NO
+  status                           int                      key=-   null=NO
+  deleted_at                       timestamp                key=-   null=YES
+  company_id                       int                      key=-   null=YES
+  product_images                   longtext                 key=-   null=YES
+  promotion_meta                   longtext                 key=-   null=YES
+  key_value                        varchar(100)             key=-   null=YES
+  source_meta                      longtext                 key=-   null=YES
+  created_by                       int                      key=-   null=YES
+  created_at                       timestamp                key=-   null=YES
+  updated_at                       timestamp                key=-   null=YES
+  erp_id                           int                      key=-   null=YES
+  companies                        longtext                 key=-   null=YES
+SAMPLE:
+  {"source_id": "1", "source_title": "web", "source_group": "web", "status": "1", "deleted_at": null, "company_id": null, "product_images": null, "promotion_meta": null, "key_value": null, "source_meta": null, "created_by": null, "created_at": null, "updated_at": null, "erp_id": null}
+  {"source_id": "2", "source_title": "mobile", "source_group": "mobile", "status": "1", "deleted_at": null, "company_id": null, "product_images": null, "promotion_meta": null, "key_value": null, "source_meta": null, "created_by": null, "created_at": null, "updated_at": null, "erp_id": null}
+
+========================================================================
+channels  rows=78  cols=23
+  channel_id                       bigint                   key=PRI null=NO
+  parent_id                        int                      key=-   null=YES
+  channel_code                     varchar(255)             key=MUL null=NO
+  channel_name                     longtext                 key=-   null=YES
+  payment_methods                  varchar(255)             key=-   null=YES
+  show_option                      int                      key=-   null=NO
+  status                           int                      key=-   null=NO
+  created_at                       datetime                 key=-   null=NO
+  updated_at                       datetime                 key=-   null=NO
+  companies                        longtext                 key=-   null=YES
+  products                         longtext                 key=-   null=YES
+  credit_limit                     longtext                 key=-   null=YES
+  channel_meta                     longtext                 key=-   null=YES
+  deleted_at                       timestamp                key=-   null=YES
+  created_by                       int                      key=-   null=YES
+  pricing_profile_id               int                      key=-   null=YES
+  company_id                       int                      key=-   null=YES
+  key_value                        varchar(100)             key=-   null=YES
+  erp_id                           varchar(100)             key=-   null=YES
+  allow_good_return                int                      key=-   null=NO
+  allow_bad_return                 int                      key=-   null=NO
+  color                            varchar(255)             key=-   null=YES
+  allow_cash_sales                 int                      key=-   null=NO
+SAMPLE:
+  {"channel_id": "1", "parent_id": null, "channel_code": "Home Delivery", "channel_name": "{\"en\":\"Home Delivery\",\"ar\":\"توصيل منزلي\"}", "payment_methods": "[1,2,12,6,13,19,4,22]", "show_option": "1", "status": "1", "created_at": "2019-12-02 15:50:45", "updated_at": "2025-10-21 11:50:18", "companies": null, "products": null, "credit_limit": null, "channel_meta": "Z002", "deleted_at": null}
+  {"channel_id": "5", "parent_id": null, "channel_code": "Horeca", "channel_name": "{\"en\":\"Horeca\",\"ar\":\"هورريكا\"}", "payment_methods": "[1,2,12,13,4]", "show_option": "1", "status": "1", "created_at": "2019-12-02 15:50:45", "updated_at": "2025-08-17 17:13:58", "companies": null, "products": null, "credit_limit": null, "channel_meta": "Z006", "deleted_at": null}
+
+========================================================================
+deliveries  rows=2243178  cols=31
+  delivery_id                      int                      key=PRI null=NO
+  delivery_trip_id                 int                      key=MUL null=YES
+  order_id                         int                      key=MUL null=YES
+  sub_delivery_id                  int                      key=MUL null=YES
+  delivery_time                    datetime                 key=-   null=YES
+  delivery_meta                    longtext                 key=-   null=YES
+  status                           int                      key=-   null=NO
+  created_by                       int                      key=-   null=YES
+  created_at                       datetime                 key=-   null=YES
+  updated_at                       datetime                 key=-   null=YES
+  deleted_at                       datetime                 key=MUL null=YES
+  erp_id                           int                      key=-   null=YES
+  companies                        longtext                 key=MUL null=YES
+  reciept_no                       longtext                 key=-   null=YES
+  delivery_date                    datetime(6)              key=-   null=YES
+  distance_from_last_point         double                   key=-   null=YES
+  time_from_last_point             double                   key=-   null=YES
+  service_time                     double                   key=-   null=YES
+  sales_per_order                  double                   key=-   null=YES
+  sequence                         int                      key=MUL null=YES
+  start_time_planned               time                     key=-   null=YES
+  end_time_planned                 datetime                 key=-   null=YES
+  distance_cover                   double(10,2)             key=-   null=YES
+  actual_arrival_time              datetime                 key=-   null=YES
+  check_in                         datetime                 key=-   null=YES
+  check_out                        datetime                 key=-   null=YES
+  un_load                          datetime                 key=-   null=YES
+  actual_time                      double                   key=-   null=YES
+  actual_distance                  double                   key=-   null=YES
+  received                         int                      key=-   null=NO
+  load_taken                       int                      key=MUL null=NO
+SAMPLE:
+  {"delivery_id": "1", "delivery_trip_id": "1", "order_id": "36342", "sub_delivery_id": null, "delivery_time": "2024-01-15 11:18:48", "delivery_meta": null, "status": "1", "created_by": null, "created_at": null, "updated_at": null, "deleted_at": null, "erp_id": null, "companies": null, "reciept_no": ""}
+  {"delivery_id": "2", "delivery_trip_id": "2", "order_id": "37360", "sub_delivery_id": null, "delivery_time": "2024-01-16 10:49:46", "delivery_meta": null, "status": "1", "created_by": null, "created_at": null, "updated_at": null, "deleted_at": null, "erp_id": null, "companies": null, "reciept_no": ""}
+
+========================================================================
+delivery_trips  rows=115825  cols=43
+  delivery_trip_id                 int                      key=PRI null=NO
+  trip_code                        longtext                 key=-   null=YES
+  route_id                         int                      key=-   null=YES
+  area_id                          int                      key=-   null=YES
+  vehicle_id                       int                      key=MUL null=YES
+  trip_driver_id                   int                      key=-   null=YES
+  delivery_trip_meta               longtext                 key=-   null=YES
+  status                           int                      key=MUL null=NO
+  created_by                       int                      key=-   null=YES
+  created_at                       datetime                 key=-   null=YES
+  updated_at                       datetime                 key=-   null=YES
+  deleted_at                       datetime                 key=MUL null=YES
+  opening_odometer                 int                      key=-   null=YES
+  closing_odometer                 int                      key=-   null=YES
+  delivery_trip_type               longtext                 key=-   null=NO
+  stock                            longtext                 key=-   null=YES
+  filled_in_percent                double                   key=-   null=YES
+  is_approved                      text                     key=MUL null=YES
+  company_id                       int                      key=-   null=YES
+  erp_id                           int                      key=-   null=YES
+  companies                        longtext                 key=MUL null=YES
+  trip_status_id                   int                      key=-   null=YES
+  trip_date                        datetime                 key=MUL null=YES
+  trip_endtime                     datetime                 key=-   null=YES
+  trip_startime                    datetime                 key=-   null=YES
+  total_distance                   double                   key=-   null=YES
+  total_time                       double                   key=-   null=YES
+  google_dist                      double                   key=-   null=YES
+  google_time                      double                   key=-   null=YES
+  gas_cost                         double                   key=-   null=YES
+  service_time                     double                   key=-   null=YES
+  sales_on_trip                    double                   key=-   null=YES
+  volume_left                      double                   key=-   null=YES
+  batch_no                         longtext                 key=-   null=YES
+  cash_collected                   double                   key=-   null=YES
+  start_time_planned               datetime                 key=-   null=YES
+  end_time_planned                 datetime                 key=-   null=YES
+  partially_closed_at              datetime                 key=-   null=YES
+  stock_confirm_at                 datetime                 key=-   null=YES
+  store_id                         int                      key=-   null=YES
+  load_pdf                         text                     key=-   null=YES
+  unload_pdf                       text                     key=-   null=YES
+  opportunity_plan_created         int                      key=-   null=NO
+SAMPLE:
+  {"delivery_trip_id": "1", "trip_code": "DDT25131", "route_id": null, "area_id": null, "vehicle_id": "271", "trip_driver_id": null, "delivery_trip_meta": null, "status": "1", "created_by": "2", "created_at": "2024-01-14 20:00:16", "updated_at": "2024-01-15 16:01:02", "deleted_at": null, "opening_odometer": "0", "closing_odometer": "0"}
+  {"delivery_trip_id": "2", "trip_code": "DDT25132", "route_id": null, "area_id": null, "vehicle_id": "271", "trip_driver_id": null, "delivery_trip_meta": null, "status": "1", "created_by": "102", "created_at": "2024-01-16 10:10:52", "updated_at": "2024-01-16 12:15:17", "deleted_at": null, "opening_odometer": "0", "closing_odometer": "0"}
+
+========================================================================
+trip_statuses  rows=5  cols=13
+  trip_status_id                   bigint unsigned          key=PRI null=NO
+  trip_status_title                longtext                 key=-   null=YES
+  status                           int                      key=MUL null=YES
+  trip_status_meta                 longtext                 key=-   null=YES
+  created_by                       int                      key=-   null=YES
+  created_at                       timestamp                key=-   null=YES
+  updated_at                       timestamp                key=-   null=YES
+  deleted_at                       timestamp                key=MUL null=YES
+  companies                        longtext                 key=-   null=YES
+  key_value                        varchar(100)             key=-   null=YES
+  key                              varchar(255)             key=MUL null=YES
+  sequence                         int                      key=-   null=YES
+  for_visit_plan                   int                      key=-   null=NO
+SAMPLE:
+  {"trip_status_id": "1", "trip_status_title": "{\"ar\": \"تعيين\", \"en\": \"Assigned\"}", "status": "1", "trip_status_meta": null, "created_by": null, "created_at": "2021-03-17 17:03:29", "updated_at": null, "deleted_at": null, "companies": null, "key_value": null, "key": "ASSIGNED", "sequence": "2", "for_visit_plan": "1"}
+  {"trip_status_id": "2", "trip_status_title": "{\"ar\": \"بدأت\", \"en\": \"Started\"}", "status": "1", "trip_status_meta": null, "created_by": null, "created_at": "2021-03-17 17:03:29", "updated_at": null, "deleted_at": null, "companies": null, "key_value": null, "key": "STARTED", "sequence": "3", "for_visit_plan": "1"}
+
+========================================================================
+delivery_slots  rows=133  cols=18
+  id                               int                      key=PRI null=NO
+  day                              varchar(200)             key=-   null=NO
+  time_slots                       text                     key=-   null=NO
+  max_orders                       int                      key=-   null=NO
+  route_id                         varchar(200)             key=-   null=NO
+  title                            varchar(100)             key=-   null=NO
+  status                           int                      key=-   null=NO
+  created_at                       datetime                 key=-   null=NO
+  updated_at                       datetime                 key=-   null=YES
+  delivery_slot_id                 int                      key=-   null=YES
+  erp_id                           int                      key=-   null=YES
+  companies                        longtext                 key=-   null=YES
+  delivery_slot_meta               longtext                 key=-   null=YES
+  deleted_at                       timestamp                key=-   null=YES
+  company_id                       int                      key=-   null=YES
+  delivery_slot_title              varchar(100)             key=-   null=YES
+  key_value                        varchar(100)             key=-   null=YES
+  channel_id                       int                      key=-   null=YES
+SAMPLE:
+  {"id": "1", "day": "Mon", "time_slots": "[{\"en\":\"Morning\",\"ar\":\"صباحاً\"},{\"en\":\"Evening\",\"ar\":\"مساءً\"}]", "max_orders": "0", "route_id": "1", "title": "{\"en\":\"Morning\",\"ar\":\"صباح\"}", "status": "1", "created_at": "2021-03-05 15:27:37", "updated_at": "2024-08-30 03:26:03", "delivery_slot_id": null, "erp_id": null, "companies": null, "delivery_slot_meta": null, "deleted_at": null}
+  {"id": "2", "day": "Tue", "time_slots": "[{\"en\":\"Morning\",\"ar\":\"صباحاً\"},{\"en\":\"Evening\",\"ar\":\"مساءً\"}]", "max_orders": "0", "route_id": "1", "title": "{\"en\":\"Evening\",\"ar\":\"مساء\"}", "status": "1", "created_at": "2021-03-05 15:27:37", "updated_at": "2024-08-30 03:26:03", "delivery_slot_id": null, "erp_id": null, "companies": null, "delivery_slot_meta": null, "deleted_at": null}
+
+========================================================================
+cancel_reasons  rows=29  cols=20
+  cancel_reason_id                 int                      key=PRI null=NO
+  reason_code                      varchar(12)              key=-   null=YES
+  reason                           text                     key=-   null=NO
+  erp_id                           varchar(50)              key=-   null=NO
+  status                           tinyint                  key=-   null=NO
+  mobile_visible                   int                      key=-   null=YES
+  created_at                       timestamp                key=-   null=NO
+  updated_at                       timestamp                key=-   null=YES
+  ticket_category_id               int                      key=-   null=YES
+  client_sort_id                   int                      key=-   null=YES
+  created_by                       int                      key=-   null=YES
+  companies                        longtext                 key=-   null=YES
+  sort_order                       int                      key=-   null=YES
+  deleted_at                       timestamp                key=-   null=YES
+  cancel_reason_meta               longtext                 key=-   null=YES
+  company_id                       int                      key=-   null=YES
+  key_value                        varchar(100)             key=-   null=YES
+  for_presale                      int                      key=-   null=YES
+  for_delivery                     int                      key=-   null=YES
+  for_hd_driver                    int                      key=-   null=NO
+SAMPLE:
+  {"cancel_reason_id": "19", "reason_code": "ORL", "reason": "{\"en\":\" I selected the wrong product.\",\"ar\":\"إختيار خاطئ في المنتج\"}", "erp_id": "ORL", "status": "1", "mobile_visible": "1", "created_at": "2017-10-14 21:17:00", "updated_at": null, "ticket_category_id": "1", "client_sort_id": "1", "created_by": null, "companies": null, "sort_order": null, "deleted_at": null}
+  {"cancel_reason_id": "20", "reason_code": "ORC", "reason": "{\"en\":\"I selected the wrong address.\",\"ar\":\"إختيار خاطئ في العنوان\"}", "erp_id": "ORC", "status": "1", "mobile_visible": "1", "created_at": "2017-10-14 21:17:00", "updated_at": null, "ticket_category_id": "1", "client_sort_id": "2", "created_by": null, "companies": null, "sort_order": null, "deleted_at": null}
+
+========================================================================
+tania_temp_customers  rows=0  cols=5
+  temp_customer_id                 int                      key=PRI null=NO
+  mobile                           varchar(20)              key=UNI null=NO
+  name                             varchar(255)             key=-   null=YES
+  email                            varchar(255)             key=-   null=YES
+  created_at                       datetime                 key=-   null=YES
+
+========================================================================
+tania_temp_addresses  rows=0  cols=5
+  temp_address_id                  int                      key=PRI null=NO
+  temp_customer_id                 int                      key=MUL null=NO
+  address                          text                     key=-   null=NO
+  map_info                         varchar(500)             key=-   null=YES
+  created_at                       datetime                 key=-   null=YES
+
+========================================================================
+tania_temp_orders  rows=2  cols=9
+  temp_order_id                    int                      key=PRI null=NO
+  temp_customer_id                 int                      key=MUL null=NO
+  temp_address_id                  int                      key=MUL null=NO
+  items                            json                     key=-   null=NO
+  total_amount                     decimal(10,2)            key=-   null=NO
+  payment_method                   enum('online','cash_on_delivery') key=-   null=NO
+  status                           enum('pending','confirmed','cancelled') key=-   null=YES
+  rating                           tinyint                  key=-   null=YES
+  created_at                       datetime                 key=-   null=YES
+SAMPLE:
+  {"temp_order_id": "2", "temp_customer_id": "1", "temp_address_id": "1", "items": "[{\"quantity\": 1, \"product_id\": 20017}]", "total_amount": "11.07", "payment_method": "online", "status": "confirmed", "rating": null, "created_at": "2026-07-27 13:05:43"}
+  {"temp_order_id": "3", "temp_customer_id": "1", "temp_address_id": "1", "items": "[{\"quantity\": 1, \"product_id\": 20017}]", "total_amount": "11.07", "payment_method": "online", "status": "confirmed", "rating": "0", "created_at": "2026-07-28 16:28:41"}
+
+========================================================================
+coupons  rows=257703  cols=16
+  id                               int                      key=PRI null=NO
+  code                             varchar(255)             key=-   null=YES
+  quantity                         int                      key=-   null=YES
+  available_qty                    int                      key=-   null=NO
+  price_per_leaflet                decimal(12,4)            key=-   null=NO
+  is_physical                      int                      key=-   null=NO
+  customer_id                      int                      key=-   null=YES
+  tran_id                          varchar(255)             key=-   null=YES
+  order_id                         int                      key=-   null=YES
+  type                             varchar(255)             key=-   null=YES
+  added_by_sap                     int                      key=-   null=YES
+  user_id                          int                      key=-   null=YES
+  created_at                       datetime                 key=-   null=NO
+  updated_at                       datetime                 key=-   null=YES
+  reason_id                        int                      key=-   null=YES
+  deleted_at                       datetime                 key=-   null=YES
+SAMPLE:
+  {"id": "1", "code": null, "quantity": "11", "available_qty": "0", "price_per_leaflet": "6.6400", "is_physical": "0", "customer_id": "105629", "tran_id": "582693725", "order_id": "1994058", "type": "credit", "added_by_sap": null, "user_id": null, "created_at": "2024-09-04 15:53:49", "updated_at": "2025-01-08 17:52:28"}
+  {"id": "2", "code": null, "quantity": "11", "available_qty": "1", "price_per_leaflet": "6.6400", "is_physical": "0", "customer_id": "130568", "tran_id": "211123653", "order_id": "1994194", "type": "credit", "added_by_sap": null, "user_id": null, "created_at": "2024-09-04 16:17:02", "updated_at": "2024-10-10 17:53:40"}
+
+========================================================================
+promocodes  rows=103  cols=34
+  promocode_id                     int                      key=PRI null=NO
+  start_date                       datetime                 key=-   null=NO
+  end_date                         datetime                 key=-   null=NO
+  channels                         text                     key=-   null=YES
+  min_quantity                     int                      key=-   null=NO
+  min_price                        int                      key=-   null=NO
+  promo_code_access                varchar(30)              key=-   null=NO
+  max_use                          int                      key=-   null=NO
+  code_used                        int                      key=-   null=YES
+  discount                         decimal(10,2)            key=-   null=NO
+  discount_type                    varchar(150)             key=-   null=NO
+  products                         text                     key=-   null=NO
+  locations                        text                     key=-   null=NO
+  available_for                    varchar(100)             key=-   null=NO
+  brand_ambassador                 varchar(50)              key=-   null=YES
+  is_default                       tinyint                  key=-   null=YES
+  for_company                      int                      key=-   null=YES
+  type                             varchar(255)             key=-   null=YES
+  refund_wallet                    int                      key=-   null=NO
+  status                           int                      key=-   null=NO
+  created_at                       datetime                 key=-   null=NO
+  updated_at                       datetime                 key=-   null=NO
+  location_updated                 double                   key=-   null=YES
+  companies                        longtext                 key=-   null=YES
+  order_status_meta                longtext                 key=-   null=YES
+  volume_2                         double                   key=-   null=YES
+  erp_id                           int                      key=-   null=YES
+  created_by                       int                      key=-   null=YES
+  volume                           longtext                 key=-   null=YES
+  sources                          longtext                 key=-   null=YES
+  company_id                       int                      key=-   null=YES
+  deleted_at                       timestamp                key=-   null=YES
+  promocode_meta                   longtext                 key=-   null=YES
+  usage_per_customer               int                      key=-   null=NO
+SAMPLE:
+  {"promocode_id": "1", "start_date": "2024-09-10 00:00:00", "end_date": "2025-12-31 12:00:00", "channels": "[19]", "min_quantity": "0", "min_price": "5", "promo_code_access": "IHC", "max_use": "0", "code_used": "148", "discount": "15.00", "discount_type": "percentage", "products": "[\"1\",\"2\",\"5\",\"144\",\"146\",\"158\",\"166\",\"167\",\"168\",\"20016\",\"20018\",\"20021\",\"20024\",\"20045\",\"20055\",\"20065\",\"20064\",\"20038\",\"20058\",\"20068\",\"20062\",\"20057\"]", "locations": "[]", "available_for": "both"}
+  {"promocode_id": "2", "start_date": "2024-09-10 00:00:00", "end_date": "2025-12-31 12:00:00", "channels": "[19]", "min_quantity": "0", "min_price": "5", "promo_code_access": "SRCA", "max_use": "0", "code_used": "234", "discount": "20.00", "discount_type": "percentage", "products": "[\"1\",\"2\",\"5\",\"144\",\"146\",\"158\",\"166\",\"167\",\"168\",\"20016\",\"20018\",\"20021\",\"20024\",\"20045\",\"20055\",\"20065\",\"20064\",\"20038\",\"20058\",\"20068\",\"20062\",\"20057\"]", "locations": "[]", "available_for": "both"}
+
+========================================================================
+tickets  rows=45474  cols=27
+  ticket_id                        int                      key=PRI null=NO
+  body                             text                     key=-   null=YES
+  area_id                          int                      key=-   null=NO
+  customer_id                      int                      key=-   null=NO
+  user_id                          int                      key=-   null=NO
+  assigned_to                      varchar(50)              key=-   null=NO
+  prev_assigned                    varchar(100)             key=-   null=YES
+  category_id                      int                      key=-   null=NO
+  priority                         text                     key=-   null=YES
+  close_ticket_date                datetime                 key=-   null=YES
+  last_reply_time                  timestamp                key=-   null=YES
+  closing_user                     int                      key=-   null=YES
+  rating                           tinyint                  key=-   null=YES
+  order_code                       varchar(30)              key=-   null=YES
+  order_id                         int                      key=-   null=YES
+  driver_id                        int                      key=-   null=YES
+  created_by_type                  tinyint                  key=-   null=YES
+  file_attachment                  varchar(255)             key=-   null=YES
+  source                           tinyint                  key=-   null=YES
+  status                           tinyint(1)               key=-   null=NO
+  created_at                       datetime                 key=-   null=NO
+  updated_at                       datetime                 key=-   null=YES
+  purchase_date                    date                     key=-   null=YES
+  purchase_source                  varchar(500)             key=-   null=YES
+  market_name                      text                     key=-   null=YES
+  district                         text                     key=-   null=YES
+  responsibility_id                int                      key=-   null=YES
+SAMPLE:
+  {"ticket_id": "1", "body": "Test", "area_id": "4654", "customer_id": "55498", "user_id": "0", "assigned_to": "1", "prev_assigned": null, "category_id": "4", "priority": "average", "close_ticket_date": null, "last_reply_time": null, "closing_user": null, "rating": null, "order_code": "55498000002"}
+  {"ticket_id": "2", "body": "مشكلة جودة ", "area_id": "4591", "customer_id": "55523", "user_id": "0", "assigned_to": "1", "prev_assigned": null, "category_id": "16", "priority": "average", "close_ticket_date": null, "last_reply_time": null, "closing_user": null, "rating": null, "order_code": "55523000001"}
+
+FOREIGN KEYS (among candidates):
+  tania_temp_addresses.temp_customer_id -> tania_temp_customers.temp_customer_id
+
+LOOKUP: order_statuses all
+  {"order_status_id": "1", "order_status_title": "{\"en\":\"payment pending\",\"ar\":\"قيد الانتظار\"}", "email_template": null, "sms_template": null, "invoice_template": null, "admin_template": null, "push_notification_template": null, "status": "1", "customer_group_id": null, "companies": null, "description": null, "order_status_meta": null, "created_at": null, "updated_at": null, "company_id": null, "erp_id": null, "key_value": null, "deleted_at": null, "key": "PAYMENT PENDING", "sequence": null}
+  {"order_status_id": "2", "order_status_title": "{\"en\":\"Confirmed\",\"ar\":\"تم التأكيد\"}", "email_template": null, "sms_template": null, "invoice_template": null, "admin_template": null, "push_notification_template": null, "status": "1", "customer_group_id": null, "companies": null, "description": null, "order_status_meta": null, "created_at": null, "updated_at": null, "company_id": null, "erp_id": null, "key_value": null, "deleted_at": null, "key": "CONFIRMED", "sequence": null}
+  {"order_status_id": "3", "order_status_title": "{\"en\":\"On the way\",\"ar\":\"في الطريق إليك\"}", "email_template": null, "sms_template": null, "invoice_template": null, "admin_template": null, "push_notification_template": "28", "status": "1", "customer_group_id": null, "companies": null, "description": null, "order_status_meta": null, "created_at": null, "updated_at": null, "company_id": null, "erp_id": null, "key_value": null, "deleted_at": null, "key": "SHIPPED", "sequence": "4"}
+  {"order_status_id": "4", "order_status_title": "{\"en\":\"Delivered\",\"ar\":\"تم التوصيل\"}", "email_template": null, "sms_template": null, "invoice_template": null, "admin_template": null, "push_notification_template": null, "status": "1", "customer_group_id": null, "companies": null, "description": null, "order_status_meta": null, "created_at": null, "updated_at": null, "company_id": null, "erp_id": null, "key_value": null, "deleted_at": null, "key": "DELIVERED", "sequence": "6"}
+  {"order_status_id": "5", "order_status_title": "{\"en\":\"Placed\",\"ar\":\"تم الإنشاء\"}", "email_template": null, "sms_template": "30", "invoice_template": null, "admin_template": null, "push_notification_template": null, "status": "1", "customer_group_id": null, "companies": null, "description": null, "order_status_meta": null, "created_at": null, "updated_at": null, "company_id": null, "erp_id": null, "key_value": null, "deleted_at": null, "key": "PLACED", "sequence": "1"}
+  {"order_status_id": "6", "order_status_title": "{\"en\":\"Canceled\",\"ar\":\"تم الإلغاء\"}", "email_template": null, "sms_template": null, "invoice_template": null, "admin_template": null, "push_notification_template": null, "status": "1", "customer_group_id": null, "companies": null, "description": null, "order_status_meta": null, "created_at": null, "updated_at": null, "company_id": null, "erp_id": null, "key_value": null, "deleted_at": null, "key": "CANCELED", "sequence": "6"}
+  {"order_status_id": "7", "order_status_title": "{\"en\":\"On Hold\",\"ar\":\"قيد المعالجه\"}", "email_template": null, "sms_template": null, "invoice_template": null, "admin_template": null, "push_notification_template": null, "status": "1", "customer_group_id": null, "companies": null, "description": null, "order_status_meta": null, "created_at": null, "updated_at": null, "company_id": null, "erp_id": null, "key_value": null, "deleted_at": null, "key": "ON HOLD", "sequence": "5"}
+  {"order_status_id": "8", "order_status_title": "{\"en\":\"On Hold by Sales\",\"ar\":\"معلق من المبيعات\"} \t", "email_template": null, "sms_template": null, "invoice_template": null, "admin_template": null, "push_notification_template": null, "status": "1", "customer_group_id": null, "companies": null, "description": null, "order_status_meta": null, "created_at": null, "updated_at": null, "company_id": null, "erp_id": null, "key_value": null, "deleted_at": null, "key": "ON HOLD BY SALES", "sequence": null}
+  {"order_status_id": "9", "order_status_title": "{\"en\":\"payment rejected\",\"ar\":\"تم رفض الدفعة\"}", "email_template": null, "sms_template": null, "invoice_template": null, "admin_template": null, "push_notification_template": null, "status": "1", "customer_group_id": null, "companies": null, "description": null, "order_status_meta": null, "created_at": null, "updated_at": null, "company_id": null, "erp_id": null, "key_value": null, "deleted_at": null, "key": "PAYMENT REJECTED", "sequence": null}
+  {"order_status_id": "10", "order_status_title": "{\"en\":\"On Hold Refund\",\"ar\":\"refund قيد المعالجه\"}", "email_template": null, "sms_template": null, "invoice_template": null, "admin_template": null, "push_notification_template": null, "status": "1", "customer_group_id": null, "companies": null, "description": null, "order_status_meta": null, "created_at": null, "updated_at": null, "company_id": null, "erp_id": null, "key_value": null, "deleted_at": null, "key": "ON HOLD REFUND", "sequence": null}
+  {"order_status_id": "13", "order_status_title": "{\"ar\": \"تعيين\", \"en\": \"Assigned\"}", "email_template": null, "sms_template": null, "invoice_template": null, "admin_template": null, "push_notification_template": null, "status": "1", "customer_group_id": null, "companies": null, "description": null, "order_status_meta": null, "created_at": null, "updated_at": null, "company_id": null, "erp_id": null, "key_value": null, "deleted_at": null, "key": "ASSIGNED", "sequence": "3"}
+  {"order_status_id": "14", "order_status_title": "{\"ar\": \"جاهز للإستلام\", \"en\": \"Ready For Pick Up\"}", "email_template": null, "sms_template": null, "invoice_template": "1", "admin_template": null, "push_notification_template": null, "status": "1", "customer_group_id": null, "companies": null, "description": null, "order_status_meta": null, "created_at": null, "updated_at": null, "company_id": null, "erp_id": null, "key_value": null, "deleted_at": null, "key": "READY_FOR_PICK_UP", "sequence": "2"}
+  {"order_status_id": "15", "order_status_title": "{\"en\": \"Updated\",\"ar\": \"Updated\"}", "email_template": null, "sms_template": null, "invoice_template": "0", "admin_template": null, "push_notification_template": null, "status": "1", "customer_group_id": null, "companies": null, "description": null, "order_status_meta": null, "created_at": null, "updated_at": null, "company_id": null, "erp_id": null, "key_value": null, "deleted_at": null, "key": "UPDATED", "sequence": "2"}
+  {"order_status_id": "17", "order_status_title": "{\"en\": \"Custody Updated\",\"ar\": \"Custody Updated\"}", "email_template": null, "sms_template": null, "invoice_template": "0", "admin_template": null, "push_notification_template": null, "status": "1", "customer_group_id": null, "companies": null, "description": null, "order_status_meta": null, "created_at": null, "updated_at": null, "company_id": null, "erp_id": null, "key_value": null, "deleted_at": null, "key": "CUSTODY_UPDATED", "sequence": "2"}
+
+LOOKUP: trip_statuses all
+  {"trip_status_id": "1", "trip_status_title": "{\"ar\": \"تعيين\", \"en\": \"Assigned\"}", "status": "1", "trip_status_meta": null, "created_by": null, "created_at": "2021-03-17 17:03:29", "updated_at": null, "deleted_at": null, "companies": null, "key_value": null, "key": "ASSIGNED", "sequence": "2", "for_visit_plan": "1"}
+  {"trip_status_id": "2", "trip_status_title": "{\"ar\": \"بدأت\", \"en\": \"Started\"}", "status": "1", "trip_status_meta": null, "created_by": null, "created_at": "2021-03-17 17:03:29", "updated_at": null, "deleted_at": null, "companies": null, "key_value": null, "key": "STARTED", "sequence": "3", "for_visit_plan": "1"}
+  {"trip_status_id": "3", "trip_status_title": "{\"ar\": \"مغلق جزئيًا\", \"en\": \"Partially Closed\"}", "status": "1", "trip_status_meta": null, "created_by": null, "created_at": "2021-03-17 17:03:29", "updated_at": null, "deleted_at": null, "companies": null, "key_value": null, "key": "PARTIALLY_CLOSED", "sequence": "4", "for_visit_plan": "0"}
+  {"trip_status_id": "4", "trip_status_title": "{\"ar\": \"مغلق\", \"en\": \"Closed\"}", "status": "1", "trip_status_meta": null, "created_by": null, "created_at": "2021-03-17 17:03:29", "updated_at": null, "deleted_at": null, "companies": null, "key_value": null, "key": "CLOSED", "sequence": "5", "for_visit_plan": "1"}
+  {"trip_status_id": "5", "trip_status_title": "{\"ar\": \"بانتظار الموافقة\", \"en\": \"Waiting For Approval\"}", "status": "1", "trip_status_meta": null, "created_by": null, "created_at": "2021-03-17 17:03:29", "updated_at": null, "deleted_at": null, "companies": null, "key_value": null, "key": "WAITING_FOR_APPROVAL", "sequence": "1", "for_visit_plan": "0"}
+
+LOOKUP: sources all
+  {"source_id": "1", "source_title": "web", "source_group": "web", "status": "1", "deleted_at": null, "company_id": null, "product_images": null, "promotion_meta": null, "key_value": null, "source_meta": null, "created_by": null, "created_at": null, "updated_at": null, "erp_id": null, "companies": null}
+  {"source_id": "2", "source_title": "mobile", "source_group": "mobile", "status": "1", "deleted_at": null, "company_id": null, "product_images": null, "promotion_meta": null, "key_value": null, "source_meta": null, "created_by": null, "created_at": null, "updated_at": null, "erp_id": null, "companies": null}
+  {"source_id": "3", "source_title": "call center", "source_group": "backend", "status": "1", "deleted_at": null, "company_id": null, "product_images": null, "promotion_meta": null, "key_value": null, "source_meta": null, "created_by": null, "created_at": null, "updated_at": null, "erp_id": null, "companies": null}
+  {"source_id": "4", "source_title": "IVR", "source_group": "backend", "status": "1", "deleted_at": null, "company_id": null, "product_images": null, "promotion_meta": null, "key_value": null, "source_meta": null, "created_by": null, "created_at": null, "updated_at": null, "erp_id": null, "companies": null}
+  {"source_id": "5", "source_title": "admin", "source_group": "backend", "status": "1", "deleted_at": null, "company_id": null, "product_images": null, "promotion_meta": null, "key_value": null, "source_meta": null, "created_by": null, "created_at": null, "updated_at": null, "erp_id": null, "companies": null}
+  {"source_id": "6", "source_title": "Postman", "source_group": "backend", "status": "1", "deleted_at": null, "company_id": null, "product_images": null, "promotion_meta": null, "key_value": null, "source_meta": null, "created_by": null, "created_at": null, "updated_at": null, "erp_id": null, "companies": null}
+  {"source_id": "7", "source_title": "ERP", "source_group": "backend", "status": "1", "deleted_at": null, "company_id": null, "product_images": null, "promotion_meta": null, "key_value": null, "source_meta": null, "created_by": null, "created_at": null, "updated_at": null, "erp_id": null, "companies": null}
+  {"source_id": "8", "source_title": "ios", "source_group": "mobile", "status": "1", "deleted_at": null, "company_id": null, "product_images": null, "promotion_meta": null, "key_value": null, "source_meta": null, "created_by": null, "created_at": null, "updated_at": null, "erp_id": null, "companies": null}
+  {"source_id": "9", "source_title": "android", "source_group": "mobile", "status": "1", "deleted_at": null, "company_id": null, "product_images": null, "promotion_meta": null, "key_value": null, "source_meta": null, "created_by": null, "created_at": null, "updated_at": null, "erp_id": null, "companies": null}
+  {"source_id": "10", "source_title": "System", "source_group": "backend", "status": "9", "deleted_at": null, "company_id": null, "product_images": null, "promotion_meta": null, "key_value": null, "source_meta": null, "created_by": null, "created_at": null, "updated_at": null, "erp_id": null, "companies": null}
+  {"source_id": "11", "source_title": "whatsapp", "source_group": "whatsapp", "status": "1", "deleted_at": null, "company_id": null, "product_images": null, "promotion_meta": null, "key_value": null, "source_meta": null, "created_by": null, "created_at": null, "updated_at": null, "erp_id": null, "companies": null}
+  {"source_id": "12", "source_title": "controltower", "source_group": "web", "status": "1", "deleted_at": null, "company_id": null, "product_images": null, "promotion_meta": null, "key_value": null, "source_meta": null, "created_by": null, "created_at": null, "updated_at": null, "erp_id": null, "companies": null}
+  {"source_id": "13", "source_title": "driver_app", "source_group": "mobile", "status": "1", "deleted_at": null, "company_id": null, "product_images": null, "promotion_meta": null, "key_value": null, "source_meta": null, "created_by": null, "created_at": null, "updated_at": null, "erp_id": null, "companies": null}
+  {"source_id": "14", "source_title": "salla", "source_group": "web", "status": "1", "deleted_at": null, "company_id": null, "product_images": null, "promotion_meta": null, "key_value": null, "source_meta": null, "created_by": null, "created_at": null, "updated_at": null, "erp_id": null, "companies": null}
+
+LOOKUP: channels sample
+  {"channel_id": "1", "parent_id": null, "channel_code": "Home Delivery", "channel_name": "{\"en\":\"Home Delivery\",\"ar\":\"توصيل منزلي\"}", "payment_methods": "[1,2,12,6,13,19,4,22]", "show_option": "1", "status": "1", "created_at": "2019-12-02 15:50:45", "updated_at": "2025-10-21 11:50:18", "companies": null, "products": null, "credit_limit": null, "channel_meta": "Z002", "deleted_at": null, "created_by": null, "pricing_profile_id": null, "company_id": null, "key_value": null, "erp_id": "20", "allow_good_return": "0", "allow_bad_return": "0", "color": "#D6006D", "allow_cash_sales": "1"}
+  {"channel_id": "5", "parent_id": null, "channel_code": "Horeca", "channel_name": "{\"en\":\"Horeca\",\"ar\":\"هورريكا\"}", "payment_methods": "[1,2,12,13,4]", "show_option": "1", "status": "1", "created_at": "2019-12-02 15:50:45", "updated_at": "2025-08-17 17:13:58", "companies": null, "products": null, "credit_limit": null, "channel_meta": "Z006", "deleted_at": null, "created_by": null, "pricing_profile_id": null, "company_id": null, "key_value": null, "erp_id": "60", "allow_good_return": "1", "allow_bad_return": "0", "color": "#007BFF", "allow_cash_sales": "1"}
+  {"channel_id": "6", "parent_id": null, "channel_code": "Key Accounts", "channel_name": "{\"en\":\"Key Accounts\",\"ar\":\"الحسابات الرئيسية\"}", "payment_methods": "[1,2,12,13,4]", "show_option": "0", "status": "1", "created_at": "2019-12-03 16:11:30", "updated_at": "2024-06-09 09:12:36", "companies": null, "products": null, "credit_limit": null, "channel_meta": "Z004", "deleted_at": null, "created_by": null, "pricing_profile_id": null, "company_id": null, "key_value": null, "erp_id": "40", "allow_good_return": "1", "allow_bad_return": "0", "color": "#4DFA10", "allow_cash_sales": "1"}
+  {"channel_id": "7", "parent_id": null, "channel_code": "Direct Distribution", "channel_name": "{\"en\":\"Direct Distribution\",\"ar\":\"التوزيع المباشر\"}", "payment_methods": "[1,2,12,13,4]", "show_option": "1", "status": "1", "created_at": "2019-12-11 18:14:55", "updated_at": "2024-05-22 12:31:40", "companies": null, "products": null, "credit_limit": null, "channel_meta": "Z001", "deleted_at": null, "created_by": null, "pricing_profile_id": null, "company_id": null, "key_value": null, "erp_id": "10", "allow_good_return": "1", "allow_bad_return": "0", "color": "#C07BFF", "allow_cash_sales": "1"}
+  {"channel_id": "8", "parent_id": null, "channel_code": "Wholesale", "channel_name": "{\"en\":\"Wholesale\",\"ar\":\"بالجملة\"}", "payment_methods": "[1,2,12,13,4]", "show_option": "1", "status": "1", "created_at": "2019-12-20 18:33:14", "updated_at": "2024-06-09 09:12:34", "companies": null, "products": null, "credit_limit": null, "channel_meta": "Z003", "deleted_at": null, "created_by": null, "pricing_profile_id": null, "company_id": null, "key_value": null, "erp_id": "30", "allow_good_return": "1", "allow_bad_return": "0", "color": "#5B1A10", "allow_cash_sales": "1"}
+  {"channel_id": "9", "parent_id": "6", "channel_code": "Hypermarket", "channel_name": "{\"en\":\"Hypermarket\",\"ar\":\"سوق ضخمة\"}", "payment_methods": "[1,2,12,13,4]", "show_option": "0", "status": "1", "created_at": "2019-12-20 18:33:59", "updated_at": "2024-01-30 22:33:20", "companies": null, "products": null, "credit_limit": null, "channel_meta": null, "deleted_at": null, "created_by": null, "pricing_profile_id": null, "company_id": null, "key_value": null, "erp_id": "13", "allow_good_return": "0", "allow_bad_return": "0", "color": null, "allow_cash_sales": "1"}
+  {"channel_id": "10", "parent_id": "6", "channel_code": "Super Market A", "channel_name": "{\"en\":\"Super Market A\",\"ar\":\"سوبر ماركت أ\"}", "payment_methods": "[1,2,12,13,4]", "show_option": "0", "status": "1", "created_at": "2019-12-20 18:34:34", "updated_at": "2024-01-30 22:33:21", "companies": null, "products": null, "credit_limit": null, "channel_meta": null, "deleted_at": null, "created_by": null, "pricing_profile_id": null, "company_id": null, "key_value": null, "erp_id": "14", "allow_good_return": "0", "allow_bad_return": "0", "color": null, "allow_cash_sales": "1"}
+  {"channel_id": "11", "parent_id": "6", "channel_code": "Super Market B", "channel_name": "{\"en\":\"Super Market B\",\"ar\":\"سوبر ماركت ب\"}", "payment_methods": "[1,2,12,13,4]", "show_option": "0", "status": "1", "created_at": "2019-12-20 18:35:33", "updated_at": "2024-01-30 22:33:21", "companies": null, "products": null, "credit_limit": null, "channel_meta": null, "deleted_at": null, "created_by": null, "pricing_profile_id": null, "company_id": null, "key_value": null, "erp_id": "15", "allow_good_return": "0", "allow_bad_return": "0", "color": null, "allow_cash_sales": "1"}
+  {"channel_id": "13", "parent_id": "7", "channel_code": "5g", "channel_name": "{\"en\":\"5g\",\"ar\":\"5g\"}", "payment_methods": "[1,2,12,13,4]", "show_option": "1", "status": "1", "created_at": "2019-12-20 18:39:57", "updated_at": "2023-06-18 00:48:21", "companies": null, "products": null, "credit_limit": null, "channel_meta": null, "deleted_at": null, "created_by": null, "pricing_profile_id": null, "company_id": null, "key_value": null, "erp_id": null, "allow_good_return": "0", "allow_bad_return": "0", "color": null, "allow_cash_sales": "1"}
+  {"channel_id": "14", "parent_id": "7", "channel_code": "Mini Market A", "channel_name": "{\"en\":\"Mini Market A\",\"ar\":\"A سوق مصغرة\"}", "payment_methods": "[1,2,12,13,4]", "show_option": "1", "status": "1", "created_at": "2019-12-20 18:40:48", "updated_at": "2024-01-21 06:29:40", "companies": null, "products": null, "credit_limit": null, "channel_meta": null, "deleted_at": null, "created_by": null, "pricing_profile_id": null, "company_id": null, "key_value": null, "erp_id": "01", "allow_good_return": "0", "allow_bad_return": "0", "color": null, "allow_cash_sales": "1"}
+
+LOOKUP: categories all
+  {"category_id": "1", "parent_id": null, "category_name": "{\"en\":\"Carton\",\"ar\":\"كرتون\"}", "category_description": "{\"en\":\"Carton\",\"ar\":\"كرتون\"}", "image": "/public/uploads/categories/UIMG2021092761518e5f86773.jpg", "web-image": "/public/uploads/categories/fruit.jpg", "icon": "/public/uploads/categories/icons/fruits.png", "category_sort": "6", "category_status": "1", "created_at": "2019-07-30 00:00:00", "updated_at": "2023-05-01 09:21:23"}
+  {"category_id": "2", "parent_id": null, "category_name": "{\"en\":\"Gallon\",\"ar\":\"جالون\"}", "category_description": "{\"en\":\"Gallon\",\"ar\":\"جالون\"}", "image": "/public/uploads/categories/UIMG2021092761518ed8c90b8.jpg", "web-image": "/public/uploads/categories/vegetables.jpg", "icon": "/public/uploads/categories/icons/vegetables.png", "category_sort": "13", "category_status": "1", "created_at": "2019-07-30 00:00:00", "updated_at": "2023-05-01 09:22:16"}
+  {"category_id": "34", "parent_id": "0", "category_name": "{\"en\":\"Test\",\"ar\":\"test\"}", "category_description": "{\"en\":\"test\",\"ar\":\"test\"}", "image": null, "web-image": null, "icon": null, "category_sort": "1", "category_status": "9", "created_at": "2023-09-19 10:08:56", "updated_at": "2023-09-19 10:09:02"}
+
+LOOKUP: address_types all
+  {"address_type_id": "1", "name": "{\"en\":\"home\",\"ar\":\"home_ar\"}", "created_at": "2020-02-10 00:00:00", "updated_at": "2020-02-10 00:00:00"}
+  {"address_type_id": "2", "name": "{\"en\":\"mosque\",\"ar\":\"mosque_ar\"}", "created_at": "2020-02-10 00:00:00", "updated_at": "2020-02-10 00:00:00"}
+  {"address_type_id": "3", "name": "{\"en\":\"office\",\"ar\":\"office_ar\"}", "created_at": "2020-02-10 00:00:00", "updated_at": "2020-02-10 00:00:00"}
+
+LOOKUP: cancel_reasons sample
+  {"cancel_reason_id": "19", "reason_code": "ORL", "reason": "{\"en\":\" I selected the wrong product.\",\"ar\":\"إختيار خاطئ في المنتج\"}", "erp_id": "ORL", "status": "1", "mobile_visible": "1", "created_at": "2017-10-14 21:17:00", "updated_at": null, "ticket_category_id": "1", "client_sort_id": "1", "created_by": null, "companies": null, "sort_order": null, "deleted_at": null, "cancel_reason_meta": null, "company_id": null, "key_value": null, "for_presale": "0", "for_delivery": "0", "for_hd_driver": "0"}
+  {"cancel_reason_id": "20", "reason_code": "ORC", "reason": "{\"en\":\"I selected the wrong address.\",\"ar\":\"إختيار خاطئ في العنوان\"}", "erp_id": "ORC", "status": "1", "mobile_visible": "1", "created_at": "2017-10-14 21:17:00", "updated_at": null, "ticket_category_id": "1", "client_sort_id": "2", "created_by": null, "companies": null, "sort_order": null, "deleted_at": null, "cancel_reason_meta": null, "company_id": null, "key_value": null, "for_presale": "0", "for_delivery": "0", "for_hd_driver": "0"}
+  {"cancel_reason_id": "21", "reason_code": "ADC", "reason": "{\"en\":\"I selected the wrong type of Payment.\",\"ar\":\"إختيار خاطئ في طريقة الدفع\"}", "erp_id": "ADC", "status": "1", "mobile_visible": "1", "created_at": "2017-10-14 21:17:00", "updated_at": null, "ticket_category_id": "1", "client_sort_id": "3", "created_by": null, "companies": null, "sort_order": null, "deleted_at": null, "cancel_reason_meta": null, "company_id": null, "key_value": null, "for_presale": "0", "for_delivery": "0", "for_hd_driver": "0"}
+  {"cancel_reason_id": "22", "reason_code": "CUS", "reason": "{\"en\":\"Other.\",\"ar\":\"آخرى\"}", "erp_id": "CUS", "status": "1", "mobile_visible": "1", "created_at": "2017-10-14 21:17:00", "updated_at": null, "ticket_category_id": "1", "client_sort_id": "4", "created_by": null, "companies": null, "sort_order": null, "deleted_at": null, "cancel_reason_meta": null, "company_id": null, "key_value": null, "for_presale": "0", "for_delivery": "0", "for_hd_driver": "0"}
+  {"cancel_reason_id": "23", "reason_code": "BDM", "reason": "{\"en\":\"Manufacturing flaw\",\"ar\":\"عيوب تصنيع - شركة\"}", "erp_id": "0", "status": "0", "mobile_visible": "0", "created_at": "2019-08-06 16:06:30", "updated_at": null, "ticket_category_id": null, "client_sort_id": "12", "created_by": null, "companies": null, "sort_order": null, "deleted_at": null, "cancel_reason_meta": null, "company_id": null, "key_value": null, "for_presale": "0", "for_delivery": "0", "for_hd_driver": "0"}
+  {"cancel_reason_id": "24", "reason_code": "CUS", "reason": "{\"en\":\"Payment Issue\",\"ar\":\"رغبة العميل\"}", "erp_id": "0", "status": "0", "mobile_visible": "0", "created_at": "2019-08-06 16:06:30", "updated_at": null, "ticket_category_id": null, "client_sort_id": null, "created_by": null, "companies": null, "sort_order": null, "deleted_at": null, "cancel_reason_meta": null, "company_id": null, "key_value": null, "for_presale": "0", "for_delivery": "0", "for_hd_driver": "0"}
+  {"cancel_reason_id": "25", "reason_code": "DEX", "reason": "{\"en\":\"Product expired\",\"ar\":\"تالف منتهي الصلاحية\"}", "erp_id": "0", "status": "0", "mobile_visible": null, "created_at": "2019-08-06 16:10:21", "updated_at": null, "ticket_category_id": null, "client_sort_id": null, "created_by": null, "companies": null, "sort_order": null, "deleted_at": null, "cancel_reason_meta": null, "company_id": null, "key_value": null, "for_presale": "0", "for_delivery": "0", "for_hd_driver": "0"}
+  {"cancel_reason_id": "26", "reason_code": "DVD", "reason": "{\"en\":\"Product damaged\",\"ar\":\"تالف ساري الصلاحية\"}", "erp_id": "0", "status": "0", "mobile_visible": null, "created_at": "2019-08-06 16:10:21", "updated_at": null, "ticket_category_id": null, "client_sort_id": null, "created_by": null, "companies": null, "sort_order": null, "deleted_at": null, "cancel_reason_meta": null, "company_id": null, "key_value": null, "for_presale": "0", "for_delivery": "0", "for_hd_driver": "0"}
+  {"cancel_reason_id": "27", "reason_code": "RMT", "reason": "{\"ar\":\"إعادة تصنيع – تنسيم\",\"en\":\"Pruduct near damaged\"}", "erp_id": "0", "status": "0", "mobile_visible": null, "created_at": "2019-08-06 16:15:29", "updated_at": null, "ticket_category_id": null, "client_sort_id": null, "created_by": null, "companies": null, "sort_order": null, "deleted_at": null, "cancel_reason_meta": null, "company_id": null, "key_value": null, "for_presale": "0", "for_delivery": "0", "for_hd_driver": "0"}
+  {"cancel_reason_id": "28", "reason_code": "PRE", "reason": "{\"en\":\"Shop closed\",\"ar\":\"Shop closed\"}", "erp_id": "0", "status": "0", "mobile_visible": "0", "created_at": "2019-08-06 16:06:30", "updated_at": null, "ticket_category_id": null, "client_sort_id": "12", "created_by": null, "companies": null, "sort_order": "1", "deleted_at": null, "cancel_reason_meta": null, "company_id": null, "key_value": null, "for_presale": "1", "for_delivery": "0", "for_hd_driver": "0"}
+
+LOOKUP: tania_temp_orders all
+  {"temp_order_id": "2", "temp_customer_id": "1", "temp_address_id": "1", "items": "[{\"quantity\": 1, \"product_id\": 20017}]", "total_amount": "11.07", "payment_method": "online", "status": "confirmed", "rating": null, "created_at": "2026-07-27 13:05:43"}
+  {"temp_order_id": "3", "temp_customer_id": "1", "temp_address_id": "1", "items": "[{\"quantity\": 1, \"product_id\": 20017}]", "total_amount": "11.07", "payment_method": "online", "status": "confirmed", "rating": "0", "created_at": "2026-07-28 16:28:41"}
+
+LOOKUP: orders recent slim
+  ERROR: 1054 (42S22): Unknown column 'address_id' in 'field list'
+
+LOOKUP: orders column probe
+  ERROR: 1054 (42S22): Unknown column 'address_id' in 'field list'
+
+ORDERS voice-interesting columns:
+  act_paid_amount
+  actual_delivery_date
+  amount_due
+  amount_paid
+  cancel_reason
+  cancel_reason_id
+  collection_type_id
+  collection_type_key
+  created_at
+  created_by
+  customer_comments
+  customer_dropoff_loc_id
+  customer_id
+  customer_serv_rating
+  deleted_at
+  delivery_date
+  delivery_date_ds
+  delivery_day
+  delivery_fee
+  delivery_invoice
+  delivery_no
+  delivery_note
+  delivery_slot_id
+  delivery_time
+  delivery_time_rating
+  donation_amount
+  driver_id
+  grand_total
+  order_status
+  order_status_id
+  payable_amount
+  payment_address_id
+  payment_belnr
+  payment_id
+  payment_method
+  prev_order_status_id
+  qitaf_amount
+  rating_created_at
+  sap_amount_wovat
+  sap_total_amount
+  sap_vat
+  shipping_address_id
+  source_id
+  status
+  status_cancelled
+  status_delivered
+  status_driver
+  status_erp
+  total
+  total_price
+  vat
+  wallet_amount
+
+DELIVERIES voice-interesting columns:
+  actual_arrival_time
+  actual_time
+  created_at
+  created_by
+  deleted_at
+  delivery_date
+  delivery_id
+  delivery_meta
+  delivery_time
+  delivery_trip_id
+  end_time_planned
+  order_id
+  sales_per_order
+  service_time
+  start_time_planned
+  status
+  sub_delivery_id
+  time_from_last_point
+  updated_at
+
+CUSTOMERS voice-interesting columns:
+  account_type_id
+  allow_email_notification
+  created_at
+  created_by
+  customer_group_id
+  customer_id
+  customer_meta
+  deleted_at
+  email
+  email_verified
+  group_id
+  mage_customer_id
+  mobile
+  name
+  name_ar
+  payment_type
+  preferred_language_id
+  status
+  update_customer_sync
+  user_name
+
+ADDRESSES voice-interesting columns:
+  address
+  address_day
+  address_detail
+  address_id
+  address_meta
+  address_of
+  address_other_detail
+  address_title
+  city_id
+  city_id_updated
+  created_at
+  created_by
+  customer_id
+  deleted_at
+  latitude
+  location_updated
+  longitude
+  mage_address_id
+  map_info
+  map_info_old
+  type
+  update_address_sync
+  updated_at
+
+order_statuses columns: order_status_id, order_status_title, email_template, sms_template, invoice_template, admin_template, push_notification_template, status, customer_group_id, companies, description, order_status_meta, created_at, updated_at, company_id, erp_id, key_value, deleted_at, key, sequence
+order_items columns: order_item_id, order_id, product_id, variant_id, quantity, unit_price, price, created_at, updated_at, status, foc_items, foc_gift, promotion_id, mage_order_item_id, foc, created_by, deleted_at, order_item_meta, company_id, erp_id, companies, total_vat, unit_price_vat, volume_2, custody_qty, deposit_amount, deposit_quantity, good_return_quantity, bad_return_quantity, discount_price, return_price, bundle_product_id, item_discount
+
+LOOKUP: recent order_items join products
+  {"order_id": "6254728", "customer_id": "928823", "created_at": "2026-06-29 12:18:47", "product_id": "1", "quantity": "4", "product_name": "{\"en\":\"Tania Gallon Refill \",\"ar\":\"تانيا جالون إعادة تعبئة\"}"}
+  {"order_id": "6254727", "customer_id": "8073", "created_at": "2026-06-29 12:18:43", "product_id": "167", "quantity": "0", "product_name": "{\"en\":\"Tania New Gallon \",\"ar\":\"تانيا جالون جديد\"}"}
+  {"order_id": "6254727", "customer_id": "8073", "created_at": "2026-06-29 12:18:43", "product_id": "5", "quantity": "13", "product_name": "{\"en\":\"5G water\",\"ar\":\"5G water\"}"}
+  {"order_id": "6254726", "customer_id": "53810", "created_at": "2026-06-29 12:18:39", "product_id": "20061", "quantity": "6", "product_name": "{\"en\":\"30000159 KR FG Carton 600 ML × 30 Tania\",\"ar\":\"30000159 KR FG Carton 600 ML × 30 Tania\"}"}
+  {"order_id": "6254725", "customer_id": "2620", "created_at": "2026-06-29 12:18:11", "product_id": "1", "quantity": "12", "product_name": "{\"en\":\"Tania Gallon Refill \",\"ar\":\"تانيا جالون إعادة تعبئة\"}"}
+
+LOOKUP: deliveries recent
+  {"delivery_id": "2243396", "delivery_trip_id": "115908", "order_id": "6254580", "sub_delivery_id": null, "delivery_time": null, "delivery_meta": null, "status": "1", "created_by": null, "created_at": null, "updated_at": null, "deleted_at": "2026-06-29 12:18:10", "erp_id": null, "companies": null, "reciept_no": null, "delivery_date": "2026-06-29 00:00:00", "distance_from_last_point": "51407.0", "time_from_last_point": "51.0", "service_time": "15.0", "sales_per_order": "667.0", "sequence": "12"}
+  {"delivery_id": "2243395", "delivery_trip_id": "115908", "order_id": "6253272", "sub_delivery_id": null, "delivery_time": null, "delivery_meta": null, "status": "1", "created_by": null, "created_at": null, "updated_at": null, "deleted_at": "2026-06-29 12:18:10", "erp_id": null, "companies": null, "reciept_no": null, "delivery_date": "2026-06-29 00:00:00", "distance_from_last_point": "24741.0", "time_from_last_point": "21.0", "service_time": "15.0", "sales_per_order": "86.25", "sequence": "11"}
+  {"delivery_id": "2243394", "delivery_trip_id": "115908", "order_id": "6253975", "sub_delivery_id": null, "delivery_time": null, "delivery_meta": null, "status": "1", "created_by": null, "created_at": null, "updated_at": null, "deleted_at": "2026-06-29 12:18:10", "erp_id": null, "companies": null, "reciept_no": null, "delivery_date": "2026-06-29 00:00:00", "distance_from_last_point": "4578.0", "time_from_last_point": "5.0", "service_time": "15.0", "sales_per_order": "2731.25", "sequence": "10"}

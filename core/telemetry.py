@@ -1,17 +1,23 @@
 """
-Telemetry client — fire-and-forget spans to the Tania Ops Console.
+Telemetry client — ordered fire-and-forget spans to the Tania Ops Console.
 Propagates session_id / turn_id via contextvars so nested Spans correlate.
 """
 import time
 import requests
 import threading
 import uuid
+import queue
 import contextvars
 
 TELEMETRY_URL = "http://127.0.0.1:8000/telemetry"
+TELEMETRY_TIMEOUT = 3.0
 
 _session_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("telemetry_session_id", default=None)
 _turn_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("telemetry_turn_id", default=None)
+
+_event_q: queue.Queue = queue.Queue(maxsize=500)
+_worker_started = False
+_worker_lock = threading.Lock()
 
 
 def set_context(session_id=None, turn_id=None):
@@ -29,11 +35,29 @@ def get_context():
     return {"session_id": _session_id.get(), "turn_id": _turn_id.get()}
 
 
-def _send_telemetry(event):
-    try:
-        requests.post(TELEMETRY_URL, json=event, timeout=0.5)
-    except Exception:
-        pass
+def _worker_loop():
+    while True:
+        event = _event_q.get()
+        try:
+            requests.post(TELEMETRY_URL, json=event, timeout=TELEMETRY_TIMEOUT)
+        except Exception as exc:
+            # Keep quiet in production path but leave a breadcrumb for debugging
+            try:
+                print(f"[telemetry] send failed: {exc}", flush=True)
+            except Exception:
+                pass
+        finally:
+            _event_q.task_done()
+
+
+def _ensure_worker():
+    global _worker_started
+    with _worker_lock:
+        if _worker_started:
+            return
+        t = threading.Thread(target=_worker_loop, name="telemetry-worker", daemon=True)
+        t.start()
+        _worker_started = True
 
 
 def emit(event_type, payload, session_id=None, turn_id=None):
@@ -47,7 +71,14 @@ def emit(event_type, payload, session_id=None, turn_id=None):
         "turn_id": tid,
         "payload": payload,
     }
-    threading.Thread(target=_send_telemetry, args=(event,), daemon=True).start()
+    _ensure_worker()
+    try:
+        _event_q.put_nowait(event)
+    except queue.Full:
+        try:
+            print("[telemetry] queue full — dropping event", flush=True)
+        except Exception:
+            pass
     return event
 
 
@@ -55,8 +86,9 @@ class Span:
     def __init__(self, name, metadata=None, session_id=None, turn_id=None):
         self.name = name
         self.metadata = metadata or {}
-        self.session_id = session_id
-        self.turn_id = turn_id
+        ctx = get_context()
+        self.session_id = session_id if session_id is not None else ctx.get("session_id")
+        self.turn_id = turn_id if turn_id is not None else ctx.get("turn_id")
         self.start_time = None
         self.exit_metadata = {}
         self.span_id = str(uuid.uuid4())
