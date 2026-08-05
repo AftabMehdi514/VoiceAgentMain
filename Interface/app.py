@@ -138,10 +138,16 @@ def process_input(audio_path, text_val, voice_name, state, history, chat_display
                         metadata={"voice": voice_name, "char_length": len(agent_reply or "")},
                     ) as tts_span:
                         audio_output = generate_audio(agent_reply, voice_name=voice_name)
+                        wav_bytes = (
+                            os.path.getsize(audio_output)
+                            if audio_output and os.path.exists(audio_output)
+                            else 0
+                        )
                         tts_span.exit_metadata = {
                             "voice": voice_name,
                             "char_length": len(agent_reply or ""),
-                            "ok": bool(audio_output),
+                            "ok": bool(audio_output) and wav_bytes > 0,
+                            "bytes": wav_bytes,
                         }
 
                     turn_span.exit_metadata = {

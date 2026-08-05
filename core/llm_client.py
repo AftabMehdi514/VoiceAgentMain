@@ -41,12 +41,22 @@ def qwen_chat(messages, max_new_tokens=400, temperature=0.7, on_token=None):
                 url, headers=headers, json=payload, timeout=180, stream=True
             )
             response.raise_for_status()
+            # LM Studio sends text/event-stream with no charset, so requests would
+            # fall back to ISO-8859-1 and mangle Arabic.
+            response.encoding = "utf-8"
 
             parts = []
             usage = {}
-            for line in response.iter_lines(decode_unicode=True):
-                if not line:
+            for raw_line in response.iter_lines(decode_unicode=False):
+                if not raw_line:
                     continue
+                # Splitting on newlines is byte-safe for UTF-8: 0x0A never occurs
+                # inside a multi-byte sequence, so each line decodes cleanly.
+                line = (
+                    raw_line.decode("utf-8", errors="replace")
+                    if isinstance(raw_line, bytes)
+                    else raw_line
+                )
                 if line.startswith(":"):
                     continue
                 if not line.startswith("data:"):
